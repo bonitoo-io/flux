@@ -793,7 +793,7 @@ func TestResultEncoder(t *testing.T) {
 			}
 			encoder := csv.NewResultEncoder(tc.encoderConfig)
 			var got bytes.Buffer
-			n, err := encoder.Encode(&got, tc.result)
+			er, err := encoder.Encode(&got, tc.result)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -801,7 +801,7 @@ func TestResultEncoder(t *testing.T) {
 			if g, w := got.String(), string(tc.encoded); g != w {
 				t.Errorf("unexpected encoding -want/+got:\n%s", diff.LineDiff(w, g))
 			}
-			if g, w := n, int64(len(tc.encoded)); g != w {
+			if g, w := er.BytesWritten, int64(len(tc.encoded)); g != w {
 				t.Errorf("unexpected encoding count -want/+got:\n%s", cmp.Diff(w, g))
 			}
 		})
@@ -810,11 +810,12 @@ func TestResultEncoder(t *testing.T) {
 
 func TestMultiResultEncoder(t *testing.T) {
 	testCases := []struct {
-		name    string
-		results flux.ResultIterator
-		encoded []byte
-		err     error
-		config  csv.ResultEncoderConfig
+		name          string
+		results       flux.ResultIterator
+		encoded       []byte
+		encoderResult *flux.EncoderResult
+		err           error
+		config        csv.ResultEncoderConfig
 	}{
 		{
 			name:   "single result",
@@ -982,12 +983,12 @@ func TestMultiResultEncoder(t *testing.T) {
 			results: errorResultIterator{
 				Error: errors.New("test error"),
 			},
-			encoded: toCRLF(`#datatype,string,string
-#group,true,true
-#default,,
-,error,reference
-,test error,
-`),
+			encoderResult: &flux.EncoderResult{
+				BytesWritten: 0,
+				Errs: []error{
+					errors.New("test error"),
+				},
+			},
 		},
 		{
 			name:   "returns query errors",
@@ -997,12 +998,12 @@ func TestMultiResultEncoder(t *testing.T) {
 					Err: errors.New("execution error"),
 				},
 			}),
-			encoded: toCRLF(`#datatype,string,string
-#group,true,true
-#default,,
-,error,reference
-,execution error,
-`),
+			encoderResult: &flux.EncoderResult{
+				BytesWritten: 0,
+				Errs: []error{
+					errors.New("execution error"),
+				},
+			},
 		},
 		{
 			name:   "returns encoding errors",
@@ -1041,7 +1042,7 @@ func TestMultiResultEncoder(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			encoder := csv.NewMultiResultEncoder(tc.config)
 			var got bytes.Buffer
-			n, err := encoder.Encode(&got, tc.results)
+			er, err := encoder.Encode(&got, tc.results)
 			if err != nil && tc.err != nil {
 				if err.Error() != tc.err.Error() {
 					t.Errorf("unexpected error want: %s\n got: %s\n", tc.err.Error(), err.Error())
@@ -1055,10 +1056,88 @@ func TestMultiResultEncoder(t *testing.T) {
 			if g, w := got.String(), string(tc.encoded); g != w {
 				t.Errorf("unexpected encoding -want/+got:\n%s", diff.LineDiff(w, g))
 			}
-			if g, w := n, int64(len(tc.encoded)); g != w {
-				t.Errorf("unexpected encoding count -want/+got:\n%s", cmp.Diff(w, g))
+
+			if tc.encoderResult != nil {
+				compareEncoderResult(t, er, *tc.encoderResult)
+			} else {
+				if g, w := er.BytesWritten, int64(len(tc.encoded)); g != w {
+					t.Errorf("unexpected encoding count -want/+got:\n%s", cmp.Diff(w, g))
+				}
 			}
 		})
+	}
+}
+
+func TestMultiResultEncoder_EncodeErrors(t *testing.T) {
+	testCases := []struct {
+		name          string
+		results       flux.ResultIterator
+		encoded       []byte
+		encoderResultBefore flux.EncoderResult
+		encoderResultAfter flux.EncoderResult
+		err           error
+	}{
+		{
+			name: "error in result",
+			results: errorResultIterator{
+				Error: errors.New("test error"),
+			},
+			encoded: toCRLF(`#datatype,string,string
+#group,true,true
+#default,,
+,error,reference
+,test error,
+`),
+			encoderResultBefore: flux.EncoderResult{
+				Errs: []error{errors.New("test error")},
+			},
+			encoderResultAfter: flux.EncoderResult{
+				BytesWritten: 87,
+			},
+		},
+		// TODO(cwolff): add testing that includes
+		//   more than one error
+		//   errors after a valid result
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			encoder := csv.NewMultiResultEncoder(csv.DefaultEncoderConfig())
+			var got bytes.Buffer
+
+			er, err := encoder.Encode(&got, tc.results)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			compareEncoderResult(t, er, tc.encoderResultBefore)
+
+			er, err = encoder.EncodeErrors(&got, er)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if g, w := got.String(), string(tc.encoded); g != w {
+				t.Errorf("unexpected encoding -want/+got:\n%s", diff.LineDiff(w, g))
+			}
+
+			compareEncoderResult(t, er, tc.encoderResultAfter)
+		})
+	}
+}
+
+func compareEncoderResult(t *testing.T, got, want flux.EncoderResult) {
+	t.Helper()
+	if g, w := got.BytesWritten, want.BytesWritten; g != w {
+		t.Errorf("unexpected encoding count -want/+got:\n%s", cmp.Diff(w, g))
+	}
+	if g, w := len(got.Errs), len(want.Errs); g != w {
+		t.Fatalf("unexpected error count -want/+got:\n%s", cmp.Diff(w, g))
+	}
+	for i, e := range got.Errs {
+		if g, w := e.Error(), want.Errs[i].Error(); g != w {
+			t.Errorf("unexpected error -want/+got:\n%s", cmp.Diff(w, g))
+		}
 	}
 }
 

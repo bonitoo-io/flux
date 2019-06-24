@@ -24,7 +24,8 @@ func (q *Querier) Query(ctx context.Context, w io.Writer, c flux.Compiler, d flu
 	defer results.Release()
 
 	encoder := d.Encoder()
-	return encoder.Encode(w, results)
+	er, err := encoder.Encode(w, results)
+	return er.BytesWritten, err
 }
 
 func NewQuerier() *Querier {

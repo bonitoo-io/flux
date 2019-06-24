@@ -753,7 +753,7 @@ func wrapEncodingError(err error) error {
 	return errors.Wrap(newCSVEncoderError(err.Error()), "csv encoder error")
 }
 
-func (e *ResultEncoder) Encode(w io.Writer, result flux.Result) (int64, error) {
+func (e *ResultEncoder) Encode(w io.Writer, result flux.Result) (flux.EncoderResult, error) {
 	tableID := 0
 	tableIDStr := "0"
 	metaCols := []colMeta{
@@ -854,31 +854,56 @@ func (e *ResultEncoder) Encode(w io.Writer, result flux.Result) (int64, error) {
 		}
 		return nil
 	})
-	return writeCounter.Count(), err
-}
 
-func (e *ResultEncoder) EncodeError(w io.Writer, err error) error {
-	writer := e.csvWriter(w)
-	if e.written {
-		// Write out empty line
-		writer.Write(nil)
-	}
-
-	for _, anno := range e.c.Annotations {
-		switch anno {
-		case datatypeAnnotation:
-			writer.Write([]string{commentPrefix + datatypeAnnotation, "string", "string"})
-		case groupAnnotation:
-			writer.Write([]string{commentPrefix + groupAnnotation, "true", "true"})
-		case defaultAnnotation:
-			writer.Write([]string{commentPrefix + defaultAnnotation, "", ""})
+	c := writeCounter.Count()
+	if err != nil {
+		if !flux.IsEncoderError(err) {
+			return flux.EncoderResult{
+				Errs:         []error{err},
+				BytesWritten: c,
+			}, nil
+		} else {
+			return flux.EncoderResult{
+				BytesWritten: c,
+			}, err
 		}
 	}
-	writer.Write([]string{"", "error", "reference"})
-	// TODO: Add referenced code
-	writer.Write([]string{"", err.Error(), ""})
-	writer.Flush()
-	return writer.Error()
+
+	return flux.EncoderResult{
+		BytesWritten: c,
+	}, nil
+}
+
+func (e *ResultEncoder) EncodeErrors(w io.Writer, er flux.EncoderResult) (flux.EncoderResult, error) {
+	cw := iocounter.Writer{Writer: w}
+	writer := e.csvWriter(&cw)
+	for len(er.Errs) > 0 {
+		fluxErr := er.Errs[0]
+
+		if e.written {
+			// Write out empty line
+			writer.Write(nil)
+		}
+
+		for _, anno := range e.c.Annotations {
+			switch anno {
+			case datatypeAnnotation:
+				writer.Write([]string{commentPrefix + datatypeAnnotation, "string", "string"})
+			case groupAnnotation:
+				writer.Write([]string{commentPrefix + groupAnnotation, "true", "true"})
+			case defaultAnnotation:
+				writer.Write([]string{commentPrefix + defaultAnnotation, "", ""})
+			}
+		}
+		writer.Write([]string{"", "error", "reference"})
+		// TODO: Add referenced code
+		writer.Write([]string{"", fluxErr.Error(), ""})
+		writer.Flush()
+
+		er.Errs = er.Errs[1:]
+	}
+	er.BytesWritten += cw.Count()
+	return er, writer.Error()
 }
 
 func writeSchema(writer *csv.Writer, c *ResultEncoderConfig, row []string, cols []colMeta, useKeyDefaults bool, key flux.GroupKey, resultName, tableID string) error {
