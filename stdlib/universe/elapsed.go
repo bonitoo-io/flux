@@ -3,9 +3,7 @@ package universe
 import (
 	"fmt"
 	"github.com/influxdata/flux"
-	"github.com/influxdata/flux/arrow"
 	"github.com/influxdata/flux/execute"
-	"github.com/influxdata/flux/interpreter"
 	"github.com/influxdata/flux/plan"
 	"github.com/influxdata/flux/semantic"
 )
@@ -171,10 +169,15 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 				if c.Type == flux.TTime {
 					if d != nil {
 						ts := cr.Times(j)
-						for i := 0; i < l; i++ {
+						prevTime := float64(execute.Time(ts.Value(0)))
+						currTime := 0.0
+						for i := 1; i < l; i++ {
 							pTime := execute.Time(ts.Value(i))
-							currTime := float(pTime)
-
+							currTime = float64(pTime)
+							if err := builder.AppendFloat(i, float64(currTime - prevTime)); err != nil {
+								return err
+							}
+							prevTime = currTime
 
 						}
 					}
@@ -186,4 +189,16 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 		firstIdx = 0
 		return nil
 	})
+}
+
+func newElapsed(col int) *elapsed {
+	return &elapsed{
+		col:         col,
+		first:       true,
+	}
+}
+
+type elapsed struct {
+	col         int
+	first       bool
 }
