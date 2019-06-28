@@ -45,7 +45,7 @@ func TestMode_Process(t *testing.T) {
 			}},
 		},
 		{
-			name: "no mode",
+			name: "no mode -- all same number of occurrences",
 			spec: &universe.ModeProcedureSpec{Column: "tag1"},
 			data: []flux.Table{
 				&executetest.Table{
