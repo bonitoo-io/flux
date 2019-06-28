@@ -134,71 +134,56 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 		return fmt.Errorf("found duplicate table with key: %v", tbl.Key())
 	}
 	cols := tbl.Cols()
-	elapsedvalues := make([]*elapsed, len(cols))
-	for j, c := range cols {
+	for _, c := range cols {
 		found := c.Label == t.timeColumn
 
 		if found {
 			var typ flux.ColType
 			if c.Type == flux.TTime {
-				typ = flux.TInt
+				typ = flux.TFloat
+			}
+
+			_, err := builder.AddCol(c)
+			if err != nil {
+				return err
 			}
 
 			if _, err := builder.AddCol(flux.ColMeta{
-				Label: c.Label,
+				Label: "elapsed",
 				Type:  typ,
 			}); err != nil {
-				return err
-			}
-			elapsedvalues[j] = newElapsed(j)
-		} else {
-			_, err := builder.AddCol(c)
-			if err != nil {
 				return err
 			}
 		}
 	}
 
-	firstIdx := 1
 	return tbl.Do(func(cr flux.ColReader) error {
 		l := cr.Len()
 
 		if l != 0 {
 			for j, c := range cols {
-				d := elapsedvalues[j]
 				if c.Type == flux.TTime {
-					if d != nil {
 						ts := cr.Times(j)
 						prevTime := float64(execute.Time(ts.Value(0)))
 						currTime := 0.0
 						for i := 1; i < l; i++ {
 							pTime := execute.Time(ts.Value(i))
 							currTime = float64(pTime)
-							if err := builder.AppendFloat(i, float64(currTime - prevTime)); err != nil {
+
+							if err := builder.AppendTime(0, pTime); err != nil {
+								return err
+							}
+
+							if err := builder.AppendFloat(1, currTime - prevTime); err != nil {
 								return err
 							}
 							prevTime = currTime
-
 						}
-					}
 				}
 			}
 		}
 
 		// Now that we skipped the first row, start at 0 for the rest of the batches
-		firstIdx = 0
 		return nil
 	})
-}
-
-func newElapsed(col int) *elapsed {
-	return &elapsed{
-		col:         col,
-		first:       true,
-	}
-}
-
-type elapsed struct {
-	col         int
-	first       bool
 }

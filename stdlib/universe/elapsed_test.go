@@ -1,4 +1,4 @@
-package universe
+package universe_test
 
 import (
 	"github.com/influxdata/flux/querytest"
@@ -7,14 +7,15 @@ import (
 	"github.com/influxdata/flux"
 	"github.com/influxdata/flux/execute"
 	"github.com/influxdata/flux/execute/executetest"
+	"github.com/influxdata/flux/stdlib/universe"
 )
 
 func TestElapsedOperation_Marshaling(t *testing.T) {
-	data := []byte(`{"id":"elapsed","kind":"elapsed","spec":{TimeColumn: "time"}}`)
+	data := []byte(`{"id":"elapsed","kind":"elapsed","spec":{"timeColumn": "_time"}}`)
 	op := &flux.Operation{
 		ID: "elapsed",
-		Spec: &ElapsedOpSpec{
-			TimeColumn: "time",
+		Spec: &universe.ElapsedOpSpec{
+			TimeColumn: "_time",
 		},
 	}
 	querytest.OperationMarshalingTestHelper(t, data, op)
@@ -22,10 +23,10 @@ func TestElapsedOperation_Marshaling(t *testing.T) {
 
 func TestElapsed_PassThrough(t *testing.T) {
 	executetest.TransformationPassThroughTestHelper(t, func(d execute.Dataset, c execute.TableBuilderCache) execute.Transformation {
-		s := NewElapsedTransformation(
+		s := universe.NewElapsedTransformation(
 			d,
 			c,
-			&ElapsedProcedureSpec{},
+			&universe.ElapsedProcedureSpec{},
 		)
 		return s
 	})
@@ -35,13 +36,13 @@ func TestElapsed_PassThrough(t *testing.T) {
 func TestElapsed_Process(t *testing.T) {
 	testCases := []struct {
 		name string
-		spec *ElapsedProcedureSpec
+		spec *universe.ElapsedProcedureSpec
 		data []flux.Table
 		want []*executetest.Table
 	}{
 		{
 			name: "basic",
-			spec: &ElapsedProcedureSpec{
+			spec: &universe.ElapsedProcedureSpec{
 				TimeColumn: execute.DefaultTimeColLabel,
 			},
 			data: []flux.Table{&executetest.Table{
@@ -57,10 +58,45 @@ func TestElapsed_Process(t *testing.T) {
 			want: []*executetest.Table{{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
+					{Label: "elapsed", Type: flux.TFloat},
+				},
+				Data: [][]interface{}{
+					{execute.Time(2), float64(execute.Time(2) - execute.Time(1))},
+				},
+			}},
+		},
+		{
+			name: "a little less basic, but still simple",
+			spec: &universe.ElapsedProcedureSpec{
+				TimeColumn: execute.DefaultTimeColLabel,
+			},
+			data: []flux.Table{&executetest.Table{
+				ColMeta: []flux.ColMeta{
+					{Label: "_time", Type: flux.TTime},
 					{Label: "_value", Type: flux.TFloat},
 				},
 				Data: [][]interface{}{
-					{execute.Time(2), -1.0},
+					{execute.Time(1), 2.0},
+					{execute.Time(2), 1.0},
+					{execute.Time(3), 3.6},
+					{execute.Time(4), 9.7},
+					{execute.Time(5), 13.1},
+					{execute.Time(6), 10.2},
+					{execute.Time(7), 5.4},
+				},
+			}},
+			want: []*executetest.Table{{
+				ColMeta: []flux.ColMeta{
+					{Label: "_time", Type: flux.TTime},
+					{Label: "elapsed", Type: flux.TFloat},
+				},
+				Data: [][]interface{}{
+					{execute.Time(2), float64(execute.Time(2) - execute.Time(1))},
+					{execute.Time(3), float64(execute.Time(3) - execute.Time(2))},
+					{execute.Time(4), float64(execute.Time(4) - execute.Time(3))},
+					{execute.Time(5), float64(execute.Time(5) - execute.Time(4))},
+					{execute.Time(6), float64(execute.Time(6) - execute.Time(5))},
+					{execute.Time(7), float64(execute.Time(7) - execute.Time(6))},
 				},
 			}},
 		},
@@ -74,7 +110,7 @@ func TestElapsed_Process(t *testing.T) {
 				tc.want,
 				nil,
 				func(d execute.Dataset, c execute.TableBuilderCache) execute.Transformation {
-					return NewElapsedTransformation(d, c, tc.spec)
+					return universe.NewElapsedTransformation(d, c, tc.spec)
 				},
 			)
 		})
