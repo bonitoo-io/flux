@@ -2,13 +2,13 @@ package universe
 
 import (
 	"fmt"
-
-	"github.com/influxdata/flux/values"
+	"sort"
 
 	"github.com/influxdata/flux"
 	"github.com/influxdata/flux/execute"
 	"github.com/influxdata/flux/plan"
 	"github.com/influxdata/flux/semantic"
+	"github.com/influxdata/flux/values"
 )
 
 const ModeKind = "mode"
@@ -45,7 +45,6 @@ func createModeOpSpec(args flux.Arguments, a *flux.Administration) (flux.Operati
 	} else {
 		spec.Column = execute.DefaultValueColLabel
 	}
-
 	return spec, nil
 }
 
@@ -285,7 +284,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			for k := range boolMode {
 				// if there are more of this than the current most, it is the new mode
 				if boolMode[k] > n {
-					storedVals = nil
+					storedVals = storedVals[:0]
 					storedVals = append(storedVals, k)
 					n = boolMode[k]
 					// if there are the same amount of this than the current mode, add it to the current mode(s)
@@ -293,28 +292,46 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					storedVals = append(storedVals, k)
 				}
 			}
-			// if all the values were added, there is no mode
-			if len(storedVals) == len(boolMode) {
+			// if more nils than the max occurrences of another value, mode is nil
+			if numNil > n {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if numNil > n {
+			} else if len(storedVals) == len(boolMode) && numNil == 0 { // if no nils and all of them have max num of occurrences, no mode
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if numNil == n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-				for j := range storedVals {
-					if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
+			} else if numNil == n { // if max is the same as nil, mode is nil and the other max occurrences
+				if len(storedVals) == 3 {
+					if err := builder.AppendBool(colIdx, true); err != nil {
 						return err
 					}
+					if err := builder.AppendBool(colIdx, false); err != nil {
+						return err
+					}
+				} else {
+					for j := range storedVals {
+						if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
+							return err
+						}
+					}
+				}
+				if err := builder.AppendNil(colIdx); err != nil {
+					return err
 				}
 			} else {
-				for j := range storedVals {
-					if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
+				if len(storedVals) == 2 {
+					if err := builder.AppendBool(colIdx, true); err != nil {
 						return err
+					}
+					if err := builder.AppendBool(colIdx, false); err != nil {
+						return err
+					}
+				} else {
+					for j := range storedVals {
+						if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -323,31 +340,33 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			n := int64(0)
 			for k := range intMode {
 				if intMode[k] > n {
-					storedVals = nil
+					storedVals = storedVals[:0]
 					storedVals = append(storedVals, k)
 					n = intMode[k]
 				} else if intMode[k] == n {
 					storedVals = append(storedVals, k)
 				}
 			}
-			if len(storedVals) == len(intMode) {
+			if numNil > n {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if numNil > n {
+			} else if len(storedVals) == len(intMode) && numNil == 0 {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
 			} else if numNil == n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
+				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
 				for j := range storedVals {
 					if err := builder.AppendInt(colIdx, storedVals[j]); err != nil {
 						return err
 					}
 				}
+				if err := builder.AppendNil(colIdx); err != nil {
+					return err
+				}
 			} else {
+				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
 				for j := range storedVals {
 					if err := builder.AppendInt(colIdx, storedVals[j]); err != nil {
 						return err
@@ -359,31 +378,33 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			n := int64(0)
 			for k := range uintMode {
 				if uintMode[k] > n {
-					storedVals = nil
+					storedVals = storedVals[:0]
 					storedVals = append(storedVals, k)
 					n = uintMode[k]
 				} else if uintMode[k] == n {
 					storedVals = append(storedVals, k)
 				}
 			}
-			if len(storedVals) == len(uintMode) {
+			if numNil > n {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if numNil > n {
+			} else if len(storedVals) == len(uintMode) && numNil == 0 {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
 			} else if numNil == n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
+				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
 				for j := range storedVals {
 					if err := builder.AppendUInt(colIdx, storedVals[j]); err != nil {
 						return err
 					}
 				}
+				if err := builder.AppendNil(colIdx); err != nil {
+					return err
+				}
 			} else {
+				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
 				for j := range storedVals {
 					if err := builder.AppendUInt(colIdx, storedVals[j]); err != nil {
 						return err
@@ -395,31 +416,33 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			n := int64(0)
 			for k := range floatMode {
 				if floatMode[k] > n {
-					storedVals = nil
+					storedVals = storedVals[:0]
 					storedVals = append(storedVals, k)
 					n = floatMode[k]
 				} else if floatMode[k] == n {
 					storedVals = append(storedVals, k)
 				}
 			}
-			if len(storedVals) == len(floatMode) {
+			if numNil > n {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if numNil > n {
+			} else if len(storedVals) == len(floatMode) && numNil == 0 {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
 			} else if numNil == n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
+				sort.Float64s(storedVals)
 				for j := range storedVals {
 					if err := builder.AppendFloat(colIdx, storedVals[j]); err != nil {
 						return err
 					}
 				}
+				if err := builder.AppendNil(colIdx); err != nil {
+					return err
+				}
 			} else {
+				sort.Float64s(storedVals)
 				for j := range storedVals {
 					if err := builder.AppendFloat(colIdx, storedVals[j]); err != nil {
 						return err
@@ -431,31 +454,33 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			n := int64(0)
 			for k := range stringMode {
 				if stringMode[k] > n {
-					storedVals = nil
+					storedVals = storedVals[:0]
 					storedVals = append(storedVals, k)
 					n = stringMode[k]
 				} else if stringMode[k] == n {
 					storedVals = append(storedVals, k)
 				}
 			}
-			if len(storedVals) == len(stringMode) {
+			if numNil > n {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if numNil > n {
+			} else if len(storedVals) == len(stringMode) && numNil == 0 {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
 			} else if numNil == n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
+				sort.Strings(storedVals)
 				for j := range storedVals {
 					if err := builder.AppendString(colIdx, storedVals[j]); err != nil {
 						return err
 					}
 				}
+				if err := builder.AppendNil(colIdx); err != nil {
+					return err
+				}
 			} else {
+				sort.Strings(storedVals)
 				for j := range storedVals {
 					if err := builder.AppendString(colIdx, storedVals[j]); err != nil {
 						return err
@@ -467,31 +492,33 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			n := int64(0)
 			for k := range timeMode {
 				if timeMode[k] > n {
-					storedVals = nil
+					storedVals = storedVals[:0]
 					storedVals = append(storedVals, k)
 					n = timeMode[k]
 				} else if timeMode[k] == n {
 					storedVals = append(storedVals, k)
 				}
 			}
-			if len(storedVals) == len(timeMode) {
+			if numNil > n {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if numNil > n {
+			} else if len(storedVals) == len(timeMode) && numNil == 0 {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
 			} else if numNil == n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
+				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
 				for j := range storedVals {
 					if err := builder.AppendTime(colIdx, storedVals[j]); err != nil {
 						return err
 					}
 				}
+				if err := builder.AppendNil(colIdx); err != nil {
+					return err
+				}
 			} else {
+				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
 				for j := range storedVals {
 					if err := builder.AppendTime(colIdx, storedVals[j]); err != nil {
 						return err
