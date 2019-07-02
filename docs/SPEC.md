@@ -1723,6 +1723,26 @@ from(bucket: "telegraf/autogen")
 	|> median()
 ```
 
+##### Mode
+
+Mode produces the mode for a given column. Null is considered as a potential mode if it is present. If there are multiple modes, all of them are returned. If there is no mode, null is returned. 
+
+Mode has the following properties: 
+
+| Name   | Type   | Description                                                                  |
+| ----   | ----   | -----------                                                                  |
+| column | string | Column is the column on which to track unique values.  Defaults to `_value`. |
+
+Example: 
+```
+from(bucket:"telegraf/autogen")
+    |> filter(fn: (r) => r._measurement == "mem" AND
+            r._field == "used_percent")
+    |> range(start:-12h)
+    |> window(every:10m)
+    |> mode(column: "_value")
+```
+
 ##### Quantile (aggregate)
 
 Quantile is both an aggregate operation and a selector operation depending on selected options.
