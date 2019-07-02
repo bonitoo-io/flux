@@ -129,7 +129,7 @@ func TestMode_Process(t *testing.T) {
 			}},
 		},
 		{
-			name: "no group key bools",
+			name: "no group key bools, null with mode",
 			spec: &universe.ModeProcedureSpec{Column: "tag1"},
 			data: []flux.Table{
 				&executetest.Table{
@@ -377,7 +377,7 @@ func TestMode_Process(t *testing.T) {
 			},
 		},
 		{
-			name: "nulls",
+			name: "null with mode",
 			spec: &universe.ModeProcedureSpec{Column: "tag1"},
 			data: []flux.Table{
 				&executetest.Table{
@@ -403,6 +403,36 @@ func TestMode_Process(t *testing.T) {
 				Data: [][]interface{}{
 					{"b"},
 					{"c"},
+				},
+			}},
+		},
+		{
+			name: "null without mode",
+			spec: &universe.ModeProcedureSpec{Column: "tag1"},
+			data: []flux.Table{
+				&executetest.Table{
+					ColMeta: []flux.ColMeta{
+						{Label: "_time", Type: flux.TTime},
+						{Label: "_value", Type: flux.TFloat},
+						{Label: "tag0", Type: flux.TString},
+						{Label: "tag1", Type: flux.TString},
+					},
+					Data: [][]interface{}{
+						{execute.Time(0), 2.0, "a", nil},
+						{execute.Time(1), 2.0, "a", "b"},
+						{execute.Time(2), 2.0, "a", "c"},
+						{execute.Time(3), 2.0, "a", "b"},
+						{execute.Time(4), 2.0, "a", "c"},
+						{execute.Time(5), 2.0, "a", nil},
+					},
+				},
+			},
+			want: []*executetest.Table{{
+				ColMeta: []flux.ColMeta{
+					{Label: "_value", Type: flux.TString},
+				},
+				Data: [][]interface{}{
+					{nil},
 				},
 			}},
 		},

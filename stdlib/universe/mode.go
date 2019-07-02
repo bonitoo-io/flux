@@ -210,75 +210,21 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 		stringMode map[string]int64
 		timeMode   map[execute.Time]int64
 	)
+
+	j := execute.ColIdx(t.column, tbl.Cols())
 	switch col.Type {
 	case flux.TBool:
 		boolMode = make(map[bool]int64)
-	case flux.TInt:
-		intMode = make(map[int64]int64)
-	case flux.TUInt:
-		uintMode = make(map[uint64]int64)
-	case flux.TFloat:
-		floatMode = make(map[float64]int64)
-	case flux.TString:
-		stringMode = make(map[string]int64)
-	case flux.TTime:
-		timeMode = make(map[execute.Time]int64)
-	}
-
-	j := execute.ColIdx(t.column, tbl.Cols())
-	return tbl.Do(func(cr flux.ColReader) error {
-		l := cr.Len()
-
-		for i := 0; i < l; i++ {
-			// Check mode
-			switch col.Type {
-			case flux.TBool:
+		return tbl.Do(func(cr flux.ColReader) error {
+			l := cr.Len()
+			for i := 0; i < l; i++ {
 				if cr.Bools(j).IsNull(i) {
 					numNil++
 					continue
 				}
 				v := cr.Bools(j).Value(i)
 				boolMode[v]++
-			case flux.TInt:
-				if cr.Ints(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.Ints(j).Value(i)
-				intMode[v]++
-			case flux.TUInt:
-				if cr.UInts(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.UInts(j).Value(i)
-				uintMode[v]++
-			case flux.TFloat:
-				if cr.Floats(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.Floats(j).Value(i)
-				floatMode[v]++
-			case flux.TString:
-				if cr.Strings(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.Strings(j).ValueString(i)
-				stringMode[v]++
-			case flux.TTime:
-				if cr.Times(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := values.Time(cr.Times(j).Value(i))
-				timeMode[v]++
 			}
-		}
-		// Find mode
-		switch col.Type {
-		case flux.TBool:
 			storedVals := []bool{}
 			n := int64(0)
 			for k := range boolMode {
@@ -297,7 +243,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if len(storedVals) == len(boolMode) && numNil == 0 { // if no nils and all of them have max num of occurrences, no mode
+			} else if len(storedVals) == len(boolMode) && (numNil == 0 || numNil == n) { // if no nils and all of them have max num of occurrences, no mode
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
@@ -335,7 +281,24 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
-		case flux.TInt:
+			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+				return err
+			}
+	
+			return nil
+		})
+	case flux.TInt:
+		intMode = make(map[int64]int64)
+		return tbl.Do(func(cr flux.ColReader) error {
+			l := cr.Len()
+			for i := 0; i < l; i++ {
+				if cr.Ints(j).IsNull(i) {
+					numNil++
+					continue
+				}
+				v := cr.Ints(j).Value(i)
+				intMode[v]++
+			}
 			storedVals := []int64{}
 			n := int64(0)
 			for k := range intMode {
@@ -351,7 +314,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if len(storedVals) == len(intMode) && numNil == 0 {
+			} else if len(storedVals) == len(intMode) && (numNil == 0 || numNil == n) {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
@@ -373,7 +336,24 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
-		case flux.TUInt:
+			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+				return err
+			}
+	
+			return nil
+		})
+	case flux.TUInt:
+		uintMode = make(map[uint64]int64)
+		return tbl.Do(func(cr flux.ColReader) error {
+			l := cr.Len()
+			for i := 0; i < l; i++ {
+				if cr.UInts(j).IsNull(i) {
+					numNil++
+					continue
+				}
+				v := cr.UInts(j).Value(i)
+				uintMode[v]++
+			}
 			storedVals := []uint64{}
 			n := int64(0)
 			for k := range uintMode {
@@ -389,7 +369,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if len(storedVals) == len(uintMode) && numNil == 0 {
+			} else if len(storedVals) == len(uintMode) && (numNil == 0 || numNil == n) {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
@@ -411,7 +391,24 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
-		case flux.TFloat:
+			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+				return err
+			}
+	
+			return nil
+		})
+	case flux.TFloat:
+		floatMode = make(map[float64]int64)
+		return tbl.Do(func(cr flux.ColReader) error {
+			l := cr.Len()
+			for i := 0; i < l; i++ {
+				if cr.Floats(j).IsNull(i) {
+					numNil++
+					continue
+				}
+				v := cr.Floats(j).Value(i)
+				floatMode[v]++
+			}
 			storedVals := []float64{}
 			n := int64(0)
 			for k := range floatMode {
@@ -427,7 +424,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if len(storedVals) == len(floatMode) && numNil == 0 {
+			} else if len(storedVals) == len(floatMode) && (numNil == 0 || numNil == n) {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
@@ -449,7 +446,24 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
-		case flux.TString:
+			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+				return err
+			}
+	
+			return nil
+		})
+	case flux.TString:
+		stringMode = make(map[string]int64)
+		return tbl.Do(func(cr flux.ColReader) error {
+			l := cr.Len()
+			for i := 0; i < l; i++ {
+				if cr.Strings(j).IsNull(i) {
+					numNil++
+					continue
+				}
+				v := cr.Strings(j).ValueString(i)
+				stringMode[v]++
+			}
 			storedVals := []string{}
 			n := int64(0)
 			for k := range stringMode {
@@ -465,7 +479,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if len(storedVals) == len(stringMode) && numNil == 0 {
+			} else if len(storedVals) == len(stringMode) && (numNil == 0 || numNil == n) {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
@@ -487,7 +501,24 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
-		case flux.TTime:
+			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+				return err
+			}
+	
+			return nil
+		})
+	case flux.TTime:
+		timeMode = make(map[execute.Time]int64)
+		return tbl.Do(func(cr flux.ColReader) error {
+			l := cr.Len()
+			for i := 0; i < l; i++ {
+				if cr.Times(j).IsNull(i) {
+					numNil++
+					continue
+				}
+				v := values.Time(cr.Times(j).Value(i))
+				timeMode[v]++
+			}
 			storedVals := []execute.Time{}
 			n := int64(0)
 			for k := range timeMode {
@@ -503,7 +534,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
-			} else if len(storedVals) == len(timeMode) && numNil == 0 {
+			} else if len(storedVals) == len(timeMode) && (numNil == 0 || numNil == n) {
 				if err := builder.AppendNil(colIdx); err != nil {
 					return err
 				}
@@ -525,14 +556,19 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
-		}
+			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+				return err
+			}
+		
+			return nil
+		})
+	}
 
-		if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
-			return err
-		}
+	if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+		return err
+	}
 
-		return nil
-	})
+	return nil
 }
 
 func (t *modeTransformation) UpdateWatermark(id execute.DatasetID, mark execute.Time) error {
