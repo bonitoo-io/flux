@@ -3033,12 +3033,6 @@ Elapsed has the following properties:
 | unit        | duration | The unit in which the elapsed time is returned. Defaults to `1s`.|
 | timeColumn  | string   | Name of the `flux.TTime` column on which to compute the elapsed time. Defaults to `_time`.                                                                  |
 
-**CURRENTLY**: 
-- no `unit`. default time is nanoseconds. 
-- Not sure if will have the "returns `0` if `unit` option is 
-greater than elapsed time" issue because I implemented using float64.
-- should there be an option to specify multiple time columns??? aka make `timeColumn` of type []string. 
-
 #### Increase
 
 Increase returns the total non-negative difference between values in a table.
