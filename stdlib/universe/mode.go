@@ -281,10 +281,11 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
+
 			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 				return err
 			}
-	
+
 			return nil
 		})
 	case flux.TInt:
@@ -339,7 +340,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 				return err
 			}
-	
+
 			return nil
 		})
 	case flux.TUInt:
@@ -394,7 +395,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 				return err
 			}
-	
+
 			return nil
 		})
 	case flux.TFloat:
@@ -449,7 +450,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 				return err
 			}
-	
+
 			return nil
 		})
 	case flux.TString:
@@ -501,10 +502,11 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 					}
 				}
 			}
+
 			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 				return err
 			}
-	
+
 			return nil
 		})
 	case flux.TTime:
@@ -559,7 +561,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 				return err
 			}
-		
+
 			return nil
 		})
 	}
