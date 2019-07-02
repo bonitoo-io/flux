@@ -156,7 +156,7 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 		if found {
 			var typ flux.ColType
 			if c.Type == flux.TTime {
-				typ = flux.TFloat
+				typ = flux.TInt
 			}
 
 			_, err := builder.AddCol(c)
@@ -180,17 +180,17 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 			for j, c := range cols {
 				if c.Type == flux.TTime {
 						ts := cr.Times(j)
-						prevTime := float64(execute.Time(ts.Value(0)))
-						currTime := 0.0
+						prevTime := int64(execute.Time(ts.Value(0)))
+						currTime := int64(0)
 						for i := 1; i < l; i++ {
 							pTime := execute.Time(ts.Value(i))
-							currTime = float64(pTime)
+							currTime = int64(pTime)
 
 							if err := builder.AppendTime(0, pTime); err != nil {
 								return err
 							}
 
-							if err := builder.AppendFloat(1, currTime - prevTime); err != nil {
+							if err := builder.AppendInt(1, currTime - prevTime); err != nil {
 								return err
 							}
 							prevTime = currTime

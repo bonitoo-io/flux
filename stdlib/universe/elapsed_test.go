@@ -60,10 +60,10 @@ func TestElapsed_Process(t *testing.T) {
 			want: []*executetest.Table{{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
-					{Label: "elapsed", Type: flux.TFloat},
+					{Label: "elapsed", Type: flux.TInt},
 				},
 				Data: [][]interface{}{
-					{execute.Time(2), float64(execute.Time(2) - execute.Time(1))},
+					{execute.Time(2), int64(execute.Time(2) - execute.Time(1))},
 				},
 			}},
 		},
@@ -90,15 +90,15 @@ func TestElapsed_Process(t *testing.T) {
 			want: []*executetest.Table{{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
-					{Label: "elapsed", Type: flux.TFloat},
+					{Label: "elapsed", Type: flux.TInt},
 				},
 				Data: [][]interface{}{
-					{execute.Time(2), float64(execute.Time(2) - execute.Time(1))},
-					{execute.Time(3), float64(execute.Time(3) - execute.Time(2))},
-					{execute.Time(4), float64(execute.Time(4) - execute.Time(3))},
-					{execute.Time(5), float64(execute.Time(5) - execute.Time(4))},
-					{execute.Time(6), float64(execute.Time(6) - execute.Time(5))},
-					{execute.Time(7), float64(execute.Time(7) - execute.Time(6))},
+					{execute.Time(2), int64(execute.Time(2) - execute.Time(1))},
+					{execute.Time(3), int64(execute.Time(3) - execute.Time(2))},
+					{execute.Time(4), int64(execute.Time(4) - execute.Time(3))},
+					{execute.Time(5), int64(execute.Time(5) - execute.Time(4))},
+					{execute.Time(6), int64(execute.Time(6) - execute.Time(5))},
+					{execute.Time(7), int64(execute.Time(7) - execute.Time(6))},
 				},
 			}},
 		},
