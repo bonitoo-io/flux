@@ -3,6 +3,7 @@ package universe_test
 import (
 	"github.com/influxdata/flux/querytest"
 	"testing"
+	"time"
 
 	"github.com/influxdata/flux"
 	"github.com/influxdata/flux/execute"
@@ -43,6 +44,7 @@ func TestElapsed_Process(t *testing.T) {
 		{
 			name: "basic",
 			spec: &universe.ElapsedProcedureSpec{
+				Unit:       flux.Duration(time.Nanosecond),
 				TimeColumn: execute.DefaultTimeColLabel,
 			},
 			data: []flux.Table{&executetest.Table{

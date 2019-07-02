@@ -6,17 +6,20 @@ import (
 	"github.com/influxdata/flux/execute"
 	"github.com/influxdata/flux/plan"
 	"github.com/influxdata/flux/semantic"
+	"time"
 )
 
 const ElapsedKind = "elapsed"
 
 type ElapsedOpSpec struct {
+	Unit 		flux.Duration `json:"unit"`
 	TimeColumn	string	 `json:"timeColumn"`
 }
 
 func init() {
 	elapsedSignature := flux.FunctionSignature(
 		map[string]semantic.PolyType{
+			"unit"		:  semantic.Duration,
 			"timeColumn":  semantic.String,
 		},
 		nil,
@@ -40,10 +43,18 @@ func createElapsedOpSpec(args flux.Arguments, a *flux.Administration) (flux.Oper
 
 	spec := new(ElapsedOpSpec)
 
-	if nn, ok, err := args.GetString("timeColumn"); err != nil {
+	if unit, ok, err := args.GetDuration("unit"); err != nil {
 		return nil, err
 	} else if ok {
-		spec.TimeColumn = nn
+		spec.Unit = unit
+	} else {
+		spec.Unit = flux.Duration(time.Second)
+	}
+
+	if timeCol, ok, err := args.GetString("timeColumn"); err != nil {
+		return nil, err
+	} else if ok {
+		spec.TimeColumn = timeCol
 	} else {
 		spec.TimeColumn = execute.DefaultTimeColLabel
 	}
@@ -61,6 +72,7 @@ func (s *ElapsedOpSpec) Kind() flux.OperationKind {
 
 type ElapsedProcedureSpec struct {
 	plan.DefaultCost
+	Unit 		flux.Duration `json:"unit"`
 	TimeColumn	string	 `json:"timeColumn"`
 }
 
@@ -71,6 +83,7 @@ func newElapsedProcedure(qs flux.OperationSpec, pa plan.Administration) (plan.Pr
 	}
 
 	return &ElapsedProcedureSpec{
+		Unit: 		 spec.Unit,
 		TimeColumn:  spec.TimeColumn,
 	}, nil
 }
@@ -81,6 +94,7 @@ func (s *ElapsedProcedureSpec) Kind() plan.ProcedureKind {
 
 func (s *ElapsedProcedureSpec) Copy() plan.ProcedureSpec {
 	return &ElapsedProcedureSpec{
+		Unit:       s.Unit,
 		TimeColumn: s.TimeColumn,
 	}
 }
@@ -100,6 +114,7 @@ type elapsedTransformation struct {
 	d     execute.Dataset
 	cache execute.TableBuilderCache
 
+	unit        flux.Duration
 	timeColumn	string
 }
 
@@ -108,6 +123,7 @@ func NewElapsedTransformation(d execute.Dataset, cache execute.TableBuilderCache
 		d:           d,
 		cache:       cache,
 
+		unit:        spec.Unit,
 		timeColumn:  spec.TimeColumn,
 	}
 }
