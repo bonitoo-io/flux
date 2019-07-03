@@ -151,6 +151,12 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 	}
 	cols := tbl.Cols()
 	numCol := 0
+
+	err := execute.AddTableCols(tbl, builder)
+	if err != nil {
+		return err
+	}
+
 	for _, c := range cols {
 		found := c.Label == t.timeColumn && c.Type == flux.TTime
 
@@ -160,11 +166,6 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 				typ = flux.TInt
 			}
 
-			_, err := builder.AddCol(c)
-			if err != nil {
-				return err
-			}
-
 			if numCol, err = builder.AddCol(flux.ColMeta{
 				Label: "elapsed",
 				Type:  typ,
@@ -172,11 +173,6 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 				return err
 			}
 
-		} else {
-			_, err := builder.AddCol(c)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -184,88 +180,30 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 
 	return tbl.Do(func(cr flux.ColReader) error {
 		l := cr.Len()
-		fmt.Println(cols)
+
+		colMap := execute.ColMap([]int{0}, builder, cr)
 
 		if l != 0 {
 			for j, c := range cols {
+
 				if c.Type == flux.TTime && c.Label == t.timeColumn {
-						ts := cr.Times(j)
-						prevTime = int64(execute.Time(ts.Value(0)))
-						currTime := int64(0)
-						for i := 1; i < l; i++ {
-							pTime := execute.Time(ts.Value(i))
-							currTime = int64(pTime)
+					ts := cr.Times(j)
+					prevTime = int64(execute.Time(ts.Value(0)))
+					currTime := int64(0)
+					for i := 1; i < l; i++ {
 
-							fmt.Println(j, c.Type, c.Label)
-							if err := builder.AppendTime(j, pTime); err != nil {
-								return err
-							}
-
-							fmt.Println(numCol)
-							if err := builder.AppendInt(numCol, int64(currTime - prevTime)); err != nil {
-								return err
-							}
-
-							prevTime = currTime
+						if err := execute.AppendMappedRecordExplicit(i, cr, builder, colMap); err != nil {
+							return err
 						}
-				} else {
-					switch c.Type {
-					case flux.TString:
-						ts := cr.Strings(j)
-						for i := 1; i < l; i++ {
-							if err := builder.AppendString(j, ts.ValueString(i)); err != nil {
-								return err
-							}
-						}
-						fmt.Println(j)
 
-					case flux.TInt:
-						ts := cr.Ints(j)
-						for i := 1; i < l; i++ {
-							if err := builder.AppendInt(j, ts.Int64Values()[i]); err != nil {
-								return err
-							}
+						pTime := execute.Time(ts.Value(i))
+						currTime = int64(pTime)
+						if err := builder.AppendInt(numCol, int64(currTime - prevTime)); err != nil {
+							return err
 						}
-						fmt.Println(j)
 
-					case flux.TFloat:
-						ts := cr.Floats(j)
-						for i := 1; i < l; i++ {
-							if err := builder.AppendFloat(j, ts.Float64Values()[i]); err != nil {
-								return err
-							}
-						}
-						fmt.Println(j)
-
-					case flux.TTime:
-						ts := cr.Times(j)
-						for i := 1; i < l; i++ {
-							if err := builder.AppendTime(j, execute.Time(ts.Value(i))); err != nil {
-								return err
-							}
-						}
-						fmt.Println(j)
-
-					case flux.TBool:
-						ts := cr.Bools(j)
-						for i := 1; i < l; i++ {
-							if err := builder.AppendBool(j, ts.Value(i)); err != nil {
-								return err
-							}
-						}
-						fmt.Println(j)
-
-					case flux.TUInt:
-						ts := cr.UInts(j)
-						for i := 1; i < l; i++ {
-							if err := builder.AppendUInt(j, ts.Uint64Values()[i]); err != nil {
-								return err
-							}
-						}
-						fmt.Println(j)
-
+						prevTime = currTime
 					}
-
 				}
 			}
 		}
