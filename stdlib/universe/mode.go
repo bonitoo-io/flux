@@ -165,11 +165,11 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 
 	if tbl.Key().HasCol(t.column) {
 		j := execute.ColIdx(t.column, tbl.Key().Cols())
-		
+
 		if err := builder.AppendValue(colIdx, tbl.Key().Value(j)); err != nil {
 			return err
 		}
-		
+
 		if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 			return err
 		}
@@ -180,7 +180,7 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 	}
 
 	var (
-		numNil     int64
+		numNil int64
 	)
 
 	switch col.Type {
@@ -293,16 +293,16 @@ func (t *modeTransformation) doString(cr flux.ColReader, tbl flux.Table, stringM
 	}
 
 	/*
-	// byte-slice method: 
-	for k := range stringMode {
-		if stringMode[k] > max {
-			storedVals = storedVals[:0]
-			storedVals = append(storedVals, k)
-			max = stringMode[k]
-		} else if stringMode[k] == max {
-			storedVals = append(storedVals, k)
+		// byte-slice method:
+		for k := range stringMode {
+			if stringMode[k] > max {
+				storedVals = storedVals[:0]
+				storedVals = append(storedVals, k)
+				max = stringMode[k]
+			} else if stringMode[k] == max {
+				storedVals = append(storedVals, k)
+			}
 		}
-	}
 	*/
 
 	if numNil > max {
@@ -443,7 +443,7 @@ func (t *modeTransformation) doInt(cr flux.ColReader, tbl flux.Table, intMode ma
 			storedVals = append(storedVals, val)
 		}
 	}
-	
+
 	if numNil > max {
 		if err := builder.AppendNil(colIdx); err != nil {
 			return err
@@ -487,7 +487,7 @@ func (t *modeTransformation) doUInt(cr flux.ColReader, tbl flux.Table, uintMode 
 		v := cr.UInts(j).Value(i)
 		uintMode[v]++
 	}
-	
+
 	max, total := int64(0), int64(0)
 	for val := range uintMode {
 		if uintMode[val] > max {
@@ -656,7 +656,6 @@ func (t *modeTransformation) doTime(cr flux.ColReader, tbl flux.Table, timeMode 
 
 	return nil
 }
-
 
 func (t *modeTransformation) UpdateWatermark(id execute.DatasetID, mark execute.Time) error {
 	return t.d.UpdateWatermark(mark)
