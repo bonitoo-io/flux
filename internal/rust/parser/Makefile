@@ -1,14 +1,11 @@
 export CC=clang
 
-# Default target
-# Does nothing as this used for the Go generate process
+# Default target, build
 all:
+	wasm-pack build --dev --scope influxdata
 
 clean:
 	$(CARGO) clean
-
-build:
-	wasm-pack build --dev --scope influxdata
 
 test:
 	$(CARGO) test

@@ -1,6 +1,6 @@
 # Default target
-# Does nothing as this used for the Go generate process
 all:
+	cargo build
 
 clean:
 	$(CARGO) clean

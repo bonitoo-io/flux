@@ -2,7 +2,7 @@ export CARGO=cargo
 
 # List any directories that have their own Makefile here
 # Each sub Makefile must have the all, clean, and test targets
-SUBDIRS = ast
+SUBDIRS = ast scanner parser
 
 # Default target
 # Does nothing as this used for the Go generate process
