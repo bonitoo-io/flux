@@ -11,7 +11,7 @@
 #    * All recursive Makefiles must support the targets: all and clean.
 #
 
-SUBDIRS = ast/asttest internal/scanner stdlib
+SUBDIRS = ast/asttest internal/scanner stdlib internal/rust
 
 GO_ARGS=-tags '$(GO_TAGS)'
 
@@ -58,7 +58,7 @@ staticcheck:
 	GO111MODULE=on go mod vendor # staticcheck looks in vendor for dependencies.
 	GO111MODULE=on go run honnef.co/go/tools/cmd/staticcheck ./...
 
-test:
+test: internal/rust
 	$(GO_TEST) $(GO_TEST_FLAGS) ./...
 
 test-race:
