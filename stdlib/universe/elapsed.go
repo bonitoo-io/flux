@@ -150,6 +150,7 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 		return fmt.Errorf("found duplicate table with key: %v", tbl.Key())
 	}
 	cols := tbl.Cols()
+	numCol := 0
 	for _, c := range cols {
 		found := c.Label == t.timeColumn
 
@@ -164,21 +165,28 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 				return err
 			}
 
-			if _, err := builder.AddCol(flux.ColMeta{
+			if numCol, err = builder.AddCol(flux.ColMeta{
 				Label: "elapsed",
 				Type:  typ,
 			}); err != nil {
 				return err
 			}
+
+		} else {
+			_, err := builder.AddCol(c)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	fmt.Println(numCol)
 
 	return tbl.Do(func(cr flux.ColReader) error {
 		l := cr.Len()
 
 		if l != 0 {
 			for j, c := range cols {
-				if c.Type == flux.TTime {
+				if c.Type == flux.TTime && c.Label == t.timeColumn {
 						ts := cr.Times(j)
 						prevTime := int64(execute.Time(ts.Value(0)))
 						currTime := int64(0)
@@ -186,20 +194,65 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 							pTime := execute.Time(ts.Value(i))
 							currTime = int64(pTime)
 
-							if err := builder.AppendTime(0, pTime); err != nil {
+							if err := builder.AppendTime(j, pTime); err != nil {
 								return err
 							}
 
-							if err := builder.AppendInt(1, currTime - prevTime); err != nil {
+							if err := builder.AppendInt(numCol, int64(currTime - prevTime)); err != nil {
 								return err
 							}
 							prevTime = currTime
 						}
+				} else {
+					switch c.Type {
+					case flux.TString:
+						ts := cr.Strings(j)
+						for i := 1; i < l; i++ {
+							if err := builder.AppendString(j, ts.ValueString(i)); err != nil {
+								return err
+							}
+						}
+					case flux.TInt:
+						ts := cr.Ints(j)
+						for i := 1; i < l; i++ {
+							if err := builder.AppendInt(j, ts.Int64Values()[i]); err != nil {
+								return err
+							}
+						}
+					case flux.TFloat:
+						ts := cr.Floats(j)
+						for i := 1; i < l; i++ {
+							if err := builder.AppendFloat(j, ts.Float64Values()[i]); err != nil {
+								return err
+							}
+						}
+					case flux.TTime:
+						ts := cr.Times(j)
+						for i := 1; i < l; i++ {
+							if err := builder.AppendTime(j, execute.Time(ts.Value(i))); err != nil {
+								return err
+							}
+						}
+					case flux.TBool:
+						ts := cr.Bools(j)
+						for i := 1; i < l; i++ {
+							if err := builder.AppendBool(j, ts.Value(i)); err != nil {
+								return err
+							}
+						}
+					case flux.TUInt:
+						ts := cr.UInts(j)
+						for i := 1; i < l; i++ {
+							if err := builder.AppendUInt(j, ts.Uint64Values()[i]); err != nil {
+								return err
+							}
+						}
+					}
+
 				}
 			}
 		}
 
-		// Now that we skipped the first row, start at 0 for the rest of the batches
 		return nil
 	})
 }

@@ -50,11 +50,10 @@ func TestElapsed_Process(t *testing.T) {
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
-					{Label: "_value", Type: flux.TFloat},
 				},
 				Data: [][]interface{}{
-					{execute.Time(1), 2.0},
-					{execute.Time(2), 1.0},
+					{execute.Time(1)},
+					{execute.Time(2)},
 				},
 			}},
 			want: []*executetest.Table{{
@@ -70,21 +69,21 @@ func TestElapsed_Process(t *testing.T) {
 		{
 			name: "a little less basic, but still simple",
 			spec: &universe.ElapsedProcedureSpec{
+				Unit:       flux.Duration(time.Second),
 				TimeColumn: execute.DefaultTimeColLabel,
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
-					{Label: "_value", Type: flux.TFloat},
 				},
 				Data: [][]interface{}{
-					{execute.Time(1), 2.0},
-					{execute.Time(2), 1.0},
-					{execute.Time(3), 3.6},
-					{execute.Time(4), 9.7},
-					{execute.Time(5), 13.1},
-					{execute.Time(6), 10.2},
-					{execute.Time(7), 5.4},
+					{execute.Time(1)},
+					{execute.Time(2)},
+					{execute.Time(3)},
+					{execute.Time(4)},
+					{execute.Time(5)},
+					{execute.Time(6)},
+					{execute.Time(7)},
 				},
 			}},
 			want: []*executetest.Table{{
@@ -99,6 +98,82 @@ func TestElapsed_Process(t *testing.T) {
 					{execute.Time(5), int64(execute.Time(5) - execute.Time(4))},
 					{execute.Time(6), int64(execute.Time(6) - execute.Time(5))},
 					{execute.Time(7), int64(execute.Time(7) - execute.Time(6))},
+				},
+			}},
+		},
+		{
+			name: "two columns: time, _value",
+			spec: &universe.ElapsedProcedureSpec{
+				Unit:       flux.Duration(time.Nanosecond),
+				TimeColumn: execute.DefaultTimeColLabel,
+			},
+			data: []flux.Table{&executetest.Table{
+				ColMeta: []flux.ColMeta{
+					{Label: "_time", Type: flux.TTime},
+					{Label: "_value", Type: flux.TInt},
+				},
+				Data: [][]interface{}{
+					{execute.Time(1), int64(2)},
+					{execute.Time(2), int64(2)},
+					{execute.Time(3), int64(2)},
+					{execute.Time(4), int64(2)},
+					{execute.Time(5), int64(2)},
+					{execute.Time(6), int64(2)},
+					{execute.Time(7), int64(2)},
+				},
+			}},
+			want: []*executetest.Table{{
+				ColMeta: []flux.ColMeta{
+					{Label: "_time", Type: flux.TTime},
+					{Label: "_value", Type: flux.TInt},
+					{Label: "elapsed", Type: flux.TInt},
+				},
+				Data: [][]interface{}{
+					{execute.Time(2), int64(2), int64(execute.Time(2) - execute.Time(1))},
+					{execute.Time(3), int64(2), int64(execute.Time(3) - execute.Time(2))},
+					{execute.Time(4), int64(2), int64(execute.Time(4) - execute.Time(3))},
+					{execute.Time(5), int64(2), int64(execute.Time(5) - execute.Time(4))},
+					{execute.Time(6), int64(2), int64(execute.Time(6) - execute.Time(5))},
+					{execute.Time(7), int64(2), int64(execute.Time(7) - execute.Time(6))},
+				},
+			}},
+		},
+		{
+			name: "three columns: time, _value, path",
+			spec: &universe.ElapsedProcedureSpec{
+				Unit:       flux.Duration(time.Nanosecond),
+				TimeColumn: execute.DefaultTimeColLabel,
+			},
+			data: []flux.Table{&executetest.Table{
+				ColMeta: []flux.ColMeta{
+					{Label: "_time", Type: flux.TTime},
+					{Label: "_value", Type: flux.TFloat},
+					{Label: "path", Type: flux.TString},
+				},
+				Data: [][]interface{}{
+					{execute.Time(1), 2.0, "/"},
+					{execute.Time(2), 1.0, "/"},
+					{execute.Time(3), 3.6, "/"},
+					{execute.Time(4), 9.7, "/"},
+					{execute.Time(5), 13.1, "/"},
+					{execute.Time(6), 10.2, "/"},
+					{execute.Time(7), 5.4, "/"},
+				},
+			}},
+			want: []*executetest.Table{{
+				ColMeta: []flux.ColMeta{
+					{Label: "_time", Type: flux.TTime},
+					{Label: "_value", Type: flux.TFloat},
+					{Label: "path", Type: flux.TString},
+					{Label: "elapsed", Type: flux.TInt},
+				},
+				Data: [][]interface{}{
+					{execute.Time(2), 1.0, "/", int64(execute.Time(2) - execute.Time(1))},
+					{execute.Time(3), 3.6, "/", int64(execute.Time(3) - execute.Time(2))},
+					{execute.Time(4), 9.7, "/", int64(execute.Time(4) - execute.Time(3))},
+					{execute.Time(5), 13.1, "/", int64(execute.Time(5) - execute.Time(4))},
+					{execute.Time(6), 10.2, "/", int64(execute.Time(6) - execute.Time(5))},
+					{execute.Time(7), 5.4, "/", int64(execute.Time(7) - execute.Time(6))},
 				},
 			}},
 		},
