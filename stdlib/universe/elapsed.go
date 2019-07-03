@@ -152,7 +152,7 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 	cols := tbl.Cols()
 	numCol := 0
 	for _, c := range cols {
-		found := c.Label == t.timeColumn
+		found := c.Label == t.timeColumn && c.Type == flux.TTime
 
 		if found {
 			var typ flux.ColType
@@ -179,28 +179,33 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 			}
 		}
 	}
-	fmt.Println(numCol)
+
+	prevTime := int64(0)
 
 	return tbl.Do(func(cr flux.ColReader) error {
 		l := cr.Len()
+		fmt.Println(cols)
 
 		if l != 0 {
 			for j, c := range cols {
 				if c.Type == flux.TTime && c.Label == t.timeColumn {
 						ts := cr.Times(j)
-						prevTime := int64(execute.Time(ts.Value(0)))
+						prevTime = int64(execute.Time(ts.Value(0)))
 						currTime := int64(0)
 						for i := 1; i < l; i++ {
 							pTime := execute.Time(ts.Value(i))
 							currTime = int64(pTime)
 
+							fmt.Println(j, c.Type, c.Label)
 							if err := builder.AppendTime(j, pTime); err != nil {
 								return err
 							}
 
+							fmt.Println(numCol)
 							if err := builder.AppendInt(numCol, int64(currTime - prevTime)); err != nil {
 								return err
 							}
+
 							prevTime = currTime
 						}
 				} else {
@@ -212,6 +217,8 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 								return err
 							}
 						}
+						fmt.Println(j)
+
 					case flux.TInt:
 						ts := cr.Ints(j)
 						for i := 1; i < l; i++ {
@@ -219,6 +226,8 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 								return err
 							}
 						}
+						fmt.Println(j)
+
 					case flux.TFloat:
 						ts := cr.Floats(j)
 						for i := 1; i < l; i++ {
@@ -226,6 +235,8 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 								return err
 							}
 						}
+						fmt.Println(j)
+
 					case flux.TTime:
 						ts := cr.Times(j)
 						for i := 1; i < l; i++ {
@@ -233,6 +244,8 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 								return err
 							}
 						}
+						fmt.Println(j)
+
 					case flux.TBool:
 						ts := cr.Bools(j)
 						for i := 1; i < l; i++ {
@@ -240,6 +253,8 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 								return err
 							}
 						}
+						fmt.Println(j)
+
 					case flux.TUInt:
 						ts := cr.UInts(j)
 						for i := 1; i < l; i++ {
@@ -247,6 +262,8 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 								return err
 							}
 						}
+						fmt.Println(j)
+
 					}
 
 				}
