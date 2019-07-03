@@ -14,6 +14,7 @@ const ElapsedKind = "elapsed"
 type ElapsedOpSpec struct {
 	Unit 		flux.Duration `json:"unit"`
 	TimeColumn	string	 `json:"timeColumn"`
+	ColumnName  string	`json:"columnName"`
 }
 
 func init() {
@@ -21,6 +22,7 @@ func init() {
 		map[string]semantic.PolyType{
 			"unit"		:  semantic.Duration,
 			"timeColumn":  semantic.String,
+			"columnName":  semantic.String,
 		},
 		nil,
 	)
@@ -59,6 +61,14 @@ func createElapsedOpSpec(args flux.Arguments, a *flux.Administration) (flux.Oper
 		spec.TimeColumn = execute.DefaultTimeColLabel
 	}
 
+	if name, ok, err := args.GetString("columnName"); err!= nil {
+		return nil, err
+	} else if ok {
+		spec.ColumnName = name
+	} else {
+		spec.ColumnName = "elapsed"
+	}
+
 	return spec, nil
 }
 
@@ -74,6 +84,7 @@ type ElapsedProcedureSpec struct {
 	plan.DefaultCost
 	Unit 		flux.Duration `json:"unit"`
 	TimeColumn	string	 `json:"timeColumn"`
+	ColumnName  string   `json: "columnName"`
 }
 
 func newElapsedProcedure(qs flux.OperationSpec, pa plan.Administration) (plan.ProcedureSpec, error) {
@@ -85,6 +96,7 @@ func newElapsedProcedure(qs flux.OperationSpec, pa plan.Administration) (plan.Pr
 	return &ElapsedProcedureSpec{
 		Unit: 		 spec.Unit,
 		TimeColumn:  spec.TimeColumn,
+		ColumnName:  spec.ColumnName,
 	}, nil
 }
 
@@ -96,6 +108,7 @@ func (s *ElapsedProcedureSpec) Copy() plan.ProcedureSpec {
 	return &ElapsedProcedureSpec{
 		Unit:       s.Unit,
 		TimeColumn: s.TimeColumn,
+		ColumnName: s.ColumnName,
 	}
 }
 
@@ -116,6 +129,7 @@ type elapsedTransformation struct {
 
 	unit        flux.Duration
 	timeColumn	string
+	columnName  string
 }
 
 func NewElapsedTransformation(d execute.Dataset, cache execute.TableBuilderCache, spec *ElapsedProcedureSpec) *elapsedTransformation {
@@ -125,6 +139,7 @@ func NewElapsedTransformation(d execute.Dataset, cache execute.TableBuilderCache
 
 		unit:        spec.Unit,
 		timeColumn:  spec.TimeColumn,
+		columnName:  spec.ColumnName,
 	}
 }
 
@@ -167,7 +182,7 @@ func (t *elapsedTransformation) Process(id execute.DatasetID, tbl flux.Table) er
 			}
 
 			if numCol, err = builder.AddCol(flux.ColMeta{
-				Label: "elapsed",
+				Label: t.columnName,
 				Type:  typ,
 			}); err != nil {
 				return err

@@ -46,6 +46,7 @@ func TestElapsed_Process(t *testing.T) {
 			spec: &universe.ElapsedProcedureSpec{
 				Unit:       flux.Duration(time.Nanosecond),
 				TimeColumn: execute.DefaultTimeColLabel,
+				ColumnName: "elapsed",
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
@@ -71,6 +72,7 @@ func TestElapsed_Process(t *testing.T) {
 			spec: &universe.ElapsedProcedureSpec{
 				Unit:       flux.Duration(time.Second),
 				TimeColumn: execute.DefaultTimeColLabel,
+				ColumnName: "elapsed",
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
@@ -106,6 +108,7 @@ func TestElapsed_Process(t *testing.T) {
 			spec: &universe.ElapsedProcedureSpec{
 				Unit:       flux.Duration(time.Nanosecond),
 				TimeColumn: execute.DefaultTimeColLabel,
+				ColumnName: "elapsed",
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
@@ -143,6 +146,7 @@ func TestElapsed_Process(t *testing.T) {
 			spec: &universe.ElapsedProcedureSpec{
 				Unit:       flux.Duration(time.Nanosecond),
 				TimeColumn: execute.DefaultTimeColLabel,
+				ColumnName: "elapsed",
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
