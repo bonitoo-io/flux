@@ -24,6 +24,8 @@ func (q *query) Results() <-chan flux.Result {
 func (q *query) Done() {
 	q.cancel()
 	q.wg.Wait()
+	q.stats.MaxAllocated = q.alloc.MaxAllocated()
+	q.stats.TotalAllocated = q.alloc.TotalAllocated()
 }
 
 func (q *query) Cancel() {

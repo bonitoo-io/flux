@@ -14,6 +14,7 @@ type Allocator struct {
 
 	bytesAllocated int64
 	maxAllocated   int64
+	totalAllocated int64
 }
 
 // Allocate will ensure that the requested memory is available and
@@ -35,6 +36,10 @@ func (a *Allocator) Allocated() int64 {
 // MaxAllocated reports the maximum amount of allocated memory at any point in the query.
 func (a *Allocator) MaxAllocated() int64 {
 	return atomic.LoadInt64(&a.maxAllocated)
+}
+
+func (a *Allocator) TotalAllocated() int64 {
+	return atomic.LoadInt64(&a.totalAllocated)
 }
 
 // Free will reduce the amount of memory used by this Allocator.
@@ -73,6 +78,12 @@ func (a *Allocator) count(size int) error {
 		// Otherwise, add the size directly to the bytes allocated and
 		// compare and swap to modify the max allocated.
 		c = atomic.AddInt64(&a.bytesAllocated, int64(size))
+	}
+
+	// Increment the total allocated if the amount is positive. This counter
+	// will only increment.
+	if size > 0 {
+		atomic.AddInt64(&a.totalAllocated, int64(size))
 	}
 
 	// Modify the max allocated if the amount we just allocated is greater.
