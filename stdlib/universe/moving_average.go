@@ -1,7 +1,6 @@
 package universe
 
 import (
-	"container/list"
 	"fmt"
 	"github.com/apache/arrow/go/arrow/array"
 	"github.com/influxdata/flux"
@@ -9,7 +8,6 @@ import (
 	"github.com/influxdata/flux/interpreter"
 	"github.com/influxdata/flux/plan"
 	"github.com/influxdata/flux/semantic"
-	"github.com/pkg/errors"
 )
 
 const MovingAverageKind = "movingAverage"
@@ -72,9 +70,8 @@ func (s *MovingAverageOpSpec) Kind() flux.OperationKind {
 
 type MovingAverageProcedureSpec struct {
 	plan.DefaultCost
-	N          int64    `json:"n"`
-	Columns    []string `json:"columns"`
-	TimeColumn string   `json:"timeColumn"`
+	N       int64    `json:"n"`
+	Columns []string `json:"columns"`
 }
 
 func newMovingAverageProcedure(qs flux.OperationSpec, pa plan.Administration) (plan.ProcedureSpec, error) {
@@ -152,6 +149,9 @@ func (t *movingAverageTransformation) Process(id execute.DatasetID, tbl flux.Tab
 		found := false
 		for _, label := range t.columns {
 			if c.Label == label {
+				if c.Type != flux.TInt && c.Type != flux.TUInt && c.Type != flux.TFloat {
+					return fmt.Errorf("cannot take moving average of column %s (type %s)", c.Label, c.Type.String())
+				}
 				found = true
 				break
 			}
@@ -182,10 +182,6 @@ func (t *movingAverageTransformation) Process(id execute.DatasetID, tbl flux.Tab
 	return tbl.Do(func(cr flux.ColReader) error {
 		if cr.Len() == 0 {
 			return nil
-		}
-
-		if cr.Times(timeIdx).NullN() > 0 {
-			return fmt.Errorf("moving average found null time in time column")
 		}
 
 		for j, c := range cr.Cols() {
@@ -225,8 +221,6 @@ func (t *movingAverageTransformation) Finish(id execute.DatasetID, err error) {
 	t.d.Finish(err)
 }
 
-const movingAverageUnsortedTimeErr = "moving average found out-of-order times in time column"
-
 func (t *movingAverageTransformation) passThroughBool(ts *array.Int64, vs *array.Boolean, b execute.TableBuilder, bj int) error {
 	i := 0
 	pTime := execute.Time(ts.Value(i))
@@ -237,9 +231,6 @@ func (t *movingAverageTransformation) passThroughBool(ts *array.Int64, vs *array
 	l := vs.Len()
 	for ; i < l; i++ {
 		cTime := execute.Time(ts.Value(i))
-		if cTime < pTime {
-			return errors.New(movingAverageUnsortedTimeErr)
-		}
 
 		if cTime == pTime {
 			continue
@@ -271,41 +262,32 @@ func (t *movingAverageTransformation) passThroughBool(ts *array.Int64, vs *array
 
 func (t *movingAverageTransformation) doInt(ts *array.Int64, vs *array.Int64, b execute.TableBuilder, bj int, doMovingAverage bool) error {
 	i := 0
-	var pValue int64
 	validPValue := false
-	window := list.New()
+	window := make([]int64, t.n)
+	count := 0
+	index := int64(0)
 	sum := int64(0)
-	nullCount := float64(0)
 
-	pTime := execute.Time(ts.Value(i))
 	if vs.IsValid(i) {
-		pValue = vs.Value(i)
 		validPValue = true
-		window.PushBack(pValue)
-		sum += pValue
+		window[count] = vs.Value(i)
+		sum += vs.Value(i)
+		index++
 	}
+	count++
 	i++
 
 	l := vs.Len()
 	for ; i < l; i++ {
-		cTime := execute.Time(ts.Value(i))
-		if cTime < pTime {
-			return errors.New(movingAverageUnsortedTimeErr)
-		}
 
-		if cTime == pTime {
-			continue
+		if !vs.IsNull(i) {
+			window[index%t.n] = vs.Value(i)
+			index++
 		}
-
-		if vs.IsNull(i) {
-			window.PushBack(nil)
-			nullCount++
-		} else {
-			window.PushBack(vs.Value(i))
-		}
+		count++
 		sum += vs.Value(i)
 
-		if int64(window.Len()) < t.n {
+		if int64(count) < t.n {
 			continue
 		}
 
@@ -325,62 +307,51 @@ func (t *movingAverageTransformation) doInt(ts *array.Int64, vs *array.Int64, b 
 			}
 
 			if vs.IsValid(i) {
-				pTime = cTime
 				validPValue = true
 			}
-		} else {
-			e := window.Front()
-			average := float64(sum) / (float64(window.Len()) - nullCount)
-			if e.Value != nil {
-				sum -= e.Value.(int64)
+		} else if vs.IsNull(i) {
+			if err := b.AppendNil(bj); err != nil {
+				return err
 			}
-			window.Remove(e)
+		} else {
+			average := float64(sum) / float64(t.n)
+			sum -= window[index%t.n]
 			if err := b.AppendFloat(bj, average); err != nil {
 				return err
 			}
 		}
-		pTime = cTime
 	}
 	return nil
 }
 
 func (t *movingAverageTransformation) doUInt(ts *array.Int64, vs *array.Uint64, b execute.TableBuilder, bj int, doMovingAverage bool) error {
 	i := 0
-	var pValue uint64
 	validPValue := false
-	window := list.New()
+	window := make([]uint64, t.n)
+	count := 0
+	index := int64(0)
 	sum := uint64(0)
-	nullCount := float64(0)
 
-	pTime := execute.Time(ts.Value(i))
 	if vs.IsValid(i) {
-		pValue = vs.Value(i)
 		validPValue = true
-		window.PushBack(pValue)
-		sum += pValue
+		window[count] = vs.Value(i)
+		sum += vs.Value(i)
+		index++
 	}
+	count++
 	i++
 
 	l := vs.Len()
 	for ; i < l; i++ {
-		cTime := execute.Time(ts.Value(i))
-		if cTime < pTime {
-			return errors.New(movingAverageUnsortedTimeErr)
-		}
 
-		if cTime == pTime {
-			continue
+		if !vs.IsNull(i) {
+			window[index%t.n] = vs.Value(i)
+			index++
 		}
-
-		if vs.IsNull(i) {
-			window.PushBack(nil)
-			nullCount++
-		} else {
-			window.PushBack(vs.Value(i))
-		}
+		count++
 		sum += vs.Value(i)
 
-		if int64(window.Len()) < t.n {
+		if int64(count) < t.n {
 			continue
 		}
 
@@ -400,62 +371,51 @@ func (t *movingAverageTransformation) doUInt(ts *array.Int64, vs *array.Uint64, 
 			}
 
 			if vs.IsValid(i) {
-				pTime = cTime
 				validPValue = true
 			}
-		} else {
-			e := window.Front()
-			average := float64(sum) / (float64(window.Len()) - nullCount)
-			if e.Value != nil {
-				sum -= e.Value.(uint64)
+		} else if vs.IsNull(i) {
+			if err := b.AppendNil(bj); err != nil {
+				return err
 			}
-			window.Remove(e)
+		} else {
+			average := float64(sum) / float64(t.n)
+			sum -= window[index%t.n]
 			if err := b.AppendFloat(bj, average); err != nil {
 				return err
 			}
 		}
-		pTime = cTime
 	}
 	return nil
 }
 
 func (t *movingAverageTransformation) doFloat(ts *array.Int64, vs *array.Float64, b execute.TableBuilder, bj int, doMovingAverage bool) error {
 	i := 0
-	var pValue float64
 	validPValue := false
-	window := list.New()
+	window := make([]float64, t.n)
+	count := 0
+	index := int64(0)
 	sum := float64(0)
-	nullCount := float64(0)
 
-	pTime := execute.Time(ts.Value(i))
 	if vs.IsValid(i) {
-		pValue = vs.Value(i)
 		validPValue = true
-		window.PushBack(pValue)
-		sum += pValue
+		window[count] = vs.Value(i)
+		sum += vs.Value(i)
+		index++
 	}
+	count++
 	i++
 
 	l := vs.Len()
 	for ; i < l; i++ {
-		cTime := execute.Time(ts.Value(i))
-		if cTime < pTime {
-			return errors.New(movingAverageUnsortedTimeErr)
-		}
 
-		if cTime == pTime {
-			continue
+		if !vs.IsNull(i) {
+			window[index%t.n] = vs.Value(i)
+			index++
 		}
-
-		if vs.IsNull(i) {
-			window.PushBack(nil)
-			nullCount++
-		} else {
-			window.PushBack(vs.Value(i))
-		}
+		count++
 		sum += vs.Value(i)
 
-		if int64(window.Len()) < t.n {
+		if int64(count) < t.n {
 			continue
 		}
 
@@ -475,53 +435,35 @@ func (t *movingAverageTransformation) doFloat(ts *array.Int64, vs *array.Float64
 			}
 
 			if vs.IsValid(i) {
-				pTime = cTime
 				validPValue = true
 			}
-		} else {
-			e := window.Front()
-			average := float64(sum) / (float64(window.Len()) - nullCount)
-			if e.Value != nil {
-				sum -= e.Value.(float64)
+		} else if vs.IsNull(i) {
+			if err := b.AppendNil(bj); err != nil {
+				return err
 			}
-			window.Remove(e)
+		} else {
+			average := float64(sum) / float64(t.n)
+			sum -= window[index%t.n]
 			if err := b.AppendFloat(bj, average); err != nil {
 				return err
 			}
 		}
-		pTime = cTime
 	}
 	return nil
 }
 
 func (t *movingAverageTransformation) passThroughString(ts *array.Int64, vs *array.Binary, b execute.TableBuilder, bj int) error {
-	i := 0
-	pTime := execute.Time(ts.Value(i))
-	i++
+	i := 1
 	count := int64(1)
 
 	// Process the rest of the rows
 	l := vs.Len()
 	for ; i < l; i++ {
-		cTime := execute.Time(ts.Value(i))
-		if cTime < pTime {
-			return errors.New(movingAverageUnsortedTimeErr)
-		}
-
-		if cTime == pTime {
-			// Only use the first value found if a time value is the same as
-			// the previous row.
-			continue
-		}
-
 		count++
 
 		if int64(count) < t.n {
 			continue
 		}
-
-		// We have a valid time for this row.  Code below should not exit
-		// the loop early so pTime can be set for the next iteration.
 
 		if vs.IsValid(i) {
 			if err := b.AppendString(bj, string(vs.Value(i))); err != nil {
@@ -532,41 +474,23 @@ func (t *movingAverageTransformation) passThroughString(ts *array.Int64, vs *arr
 				return err
 			}
 		}
-
-		pTime = cTime
 	}
 
 	return nil
 }
 
 func (t *movingAverageTransformation) passThroughTime(ts *array.Int64, vs *array.Int64, b execute.TableBuilder, bj int) error {
-	i := 0
-	pTime := execute.Time(ts.Value(i))
-	i++
+	i := 1
 	count := int64(1)
 
 	// Process the rest of the rows
 	l := vs.Len()
 	for ; i < l; i++ {
-		cTime := execute.Time(ts.Value(i))
-		if cTime < pTime {
-			return errors.New(movingAverageUnsortedTimeErr)
-		}
-
-		if cTime == pTime {
-			// Only use the first value found if a time value is the same as
-			// the previous row.
-			continue
-		}
-
 		count++
 
 		if count < t.n {
 			continue
 		}
-
-		// We have a valid time for this row.  Code below should not exit
-		// the loop early so pTime can be set for the next iteration.
 
 		if vs.IsValid(i) {
 			if err := b.AppendTime(bj, execute.Time(vs.Value(i))); err != nil {
@@ -577,8 +501,6 @@ func (t *movingAverageTransformation) passThroughTime(ts *array.Int64, vs *array
 				return err
 			}
 		}
-
-		pTime = cTime
 	}
 
 	return nil

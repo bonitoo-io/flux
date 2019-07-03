@@ -86,9 +86,8 @@ func TestMovingAverage_Process(t *testing.T) {
 		{
 			name: "float with 3",
 			spec: &universe.MovingAverageProcedureSpec{
-				Columns:    []string{execute.DefaultValueColLabel},
-				TimeColumn: execute.DefaultTimeColLabel,
-				N:          3,
+				Columns: []string{execute.DefaultValueColLabel},
+				N:       3,
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
@@ -418,40 +417,10 @@ func TestMovingAverage_Process(t *testing.T) {
 			}},
 		},
 		{
-			name: "float with null values",
-			spec: &universe.MovingAverageProcedureSpec{
-				Columns: []string{"x", "y"},
-				N:       1,
-			},
-			data: []flux.Table{&executetest.Table{
-				ColMeta: []flux.ColMeta{
-					{Label: "_time", Type: flux.TTime},
-					{Label: "x", Type: flux.TFloat},
-					{Label: "y", Type: flux.TFloat},
-				},
-				Data: [][]interface{}{
-					{execute.Time(1), 2.0, nil},
-					{execute.Time(2), nil, 10.0},
-					{execute.Time(3), 8.0, 20.0},
-				},
-			}},
-			want: []*executetest.Table{{
-				ColMeta: []flux.ColMeta{
-					{Label: "_time", Type: flux.TTime},
-					{Label: "x", Type: flux.TFloat},
-					{Label: "y", Type: flux.TFloat},
-				},
-				Data: [][]interface{}{
-					{execute.Time(2), 2.0, nil},
-					{execute.Time(3), 8.0, 15.0},
-				},
-			}},
-		},
-		{
 			name: "nulls in time column",
 			spec: &universe.MovingAverageProcedureSpec{
 				Columns: []string{"x", "y"},
-				N:       1,
+				N:       2,
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
@@ -469,65 +438,68 @@ func TestMovingAverage_Process(t *testing.T) {
 					{nil, 8.0, 20.0},
 				},
 			}},
-			wantErr: fmt.Errorf("moving average found null time in time column"),
-		},
-		{
-			name: "times out of order",
-			spec: &universe.MovingAverageProcedureSpec{
-				Columns: []string{"x", "y"},
-				N:       1,
-			},
-			data: []flux.Table{&executetest.Table{
+			want: []*executetest.Table{{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
 					{Label: "x", Type: flux.TFloat},
 					{Label: "y", Type: flux.TFloat},
 				},
 				Data: [][]interface{}{
-					{execute.Time(2), nil, 10.0},
+					{execute.Time(2), nil, 13.0 / 2},
+					{nil, 5.0, 15.0},
 					{execute.Time(4), 8.0, 20.0},
-					{execute.Time(6), 10.0, 25.0},
-
-					{execute.Time(3), nil, 10.0},
-					{execute.Time(5), 8.0, 20.0},
-					{execute.Time(7), 10.0, nil},
+					{nil, 8.0, 20.0},
+					{execute.Time(6), 9.0, 22.5},
+					{nil, 9.0, 22.5},
 				},
 			}},
-			wantErr: fmt.Errorf("moving average found out-of-order times in time column"),
 		},
 		{
-			name: "pass through with repeated times",
+			name: "mean average of non-numerical column",
 			spec: &universe.MovingAverageProcedureSpec{
-				Columns: []string{"x"},
+				Columns: []string{"x", "y"},
 				N:       2,
 			},
 			data: []flux.Table{&executetest.Table{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
 					{Label: "x", Type: flux.TFloat},
-					{Label: "b", Type: flux.TBool},
-					{Label: "s", Type: flux.TString},
+					{Label: "y", Type: flux.TString},
+				},
+			}},
+			wantErr: fmt.Errorf("cannot take moving average of column y (type string)"),
+		},
+		{
+			name: "int nulls",
+			spec: &universe.MovingAverageProcedureSpec{
+				Columns: []string{"x", "y", "z"},
+				N:       2,
+			},
+			data: []flux.Table{&executetest.Table{
+				ColMeta: []flux.ColMeta{
+					{Label: "_time", Type: flux.TTime},
+					{Label: "x", Type: flux.TInt},
+					{Label: "y", Type: flux.TInt},
+					{Label: "z", Type: flux.TInt},
 				},
 				Data: [][]interface{}{
-					{execute.Time(2), 6.0, false, "bar"},
-					{execute.Time(2), 1.0, false, "bar"},
-					{execute.Time(4), 8.0, false, nil},
-					{execute.Time(4), 9.0, true, "baz"},
-					{execute.Time(6), 10.0, nil, "dog"},
-					{execute.Time(6), 10.0, nil, "dog"},
-					{execute.Time(6), 10.0, nil, "dog"},
+					{execute.Time(1), nil, int64(1), int64(2)},
+					{execute.Time(2), nil, int64(2), nil},
+					{execute.Time(3), int64(4), nil, int64(4)},
+					{execute.Time(4), int64(2), nil, int64(4)},
 				},
 			}},
 			want: []*executetest.Table{{
 				ColMeta: []flux.ColMeta{
 					{Label: "_time", Type: flux.TTime},
 					{Label: "x", Type: flux.TFloat},
-					{Label: "b", Type: flux.TBool},
-					{Label: "s", Type: flux.TString},
+					{Label: "y", Type: flux.TFloat},
+					{Label: "z", Type: flux.TFloat},
 				},
 				Data: [][]interface{}{
-					{execute.Time(4), 7.0, false, nil},
-					{execute.Time(6), 9.0, nil, "dog"},
+					{execute.Time(2), nil, 1.5, nil},
+					{execute.Time(3), nil, nil, 3.0},
+					{execute.Time(4), 3.0, nil, 4.0},
 				},
 			}},
 		},
