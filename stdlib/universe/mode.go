@@ -165,33 +165,11 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 
 	if tbl.Key().HasCol(t.column) {
 		j := execute.ColIdx(t.column, tbl.Key().Cols())
-		switch col.Type {
-		case flux.TBool:
-			if err := builder.AppendBool(colIdx, tbl.Key().ValueBool(j)); err != nil {
-				return err
-			}
-		case flux.TInt:
-			if err := builder.AppendInt(colIdx, tbl.Key().ValueInt(j)); err != nil {
-				return err
-			}
-		case flux.TUInt:
-			if err := builder.AppendUInt(colIdx, tbl.Key().ValueUInt(j)); err != nil {
-				return err
-			}
-		case flux.TFloat:
-			if err := builder.AppendFloat(colIdx, tbl.Key().ValueFloat(j)); err != nil {
-				return err
-			}
-		case flux.TString:
-			if err := builder.AppendString(colIdx, tbl.Key().ValueString(j)); err != nil {
-				return err
-			}
-		case flux.TTime:
-			if err := builder.AppendTime(colIdx, tbl.Key().ValueTime(j)); err != nil {
-				return err
-			}
+		
+		if err := builder.AppendValue(colIdx, tbl.Key().Value(j)); err != nil {
+			return err
 		}
-
+		
 		if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
 			return err
 		}
@@ -203,362 +181,76 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 
 	var (
 		numNil     int64
-		boolMode   map[bool]int64
-		intMode    map[int64]int64
-		uintMode   map[uint64]int64
-		floatMode  map[float64]int64
-		stringMode map[string]int64
-		timeMode   map[execute.Time]int64
 	)
 
-	j := execute.ColIdx(t.column, tbl.Cols())
 	switch col.Type {
 	case flux.TBool:
-		boolMode = make(map[bool]int64)
+		boolMode := make(map[bool]int64)
 		return tbl.Do(func(cr flux.ColReader) error {
 			l := cr.Len()
-			for i := 0; i < l; i++ {
-				if cr.Bools(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.Bools(j).Value(i)
-				boolMode[v]++
-			}
-			storedVals := []bool{}
-			n := int64(0)
-			for k := range boolMode {
-				// if there are more of this than the current most, it is the new mode
-				if boolMode[k] > n {
-					storedVals = storedVals[:0]
-					storedVals = append(storedVals, k)
-					n = boolMode[k]
-					// if there are the same amount of this than the current mode, add it to the current mode(s)
-				} else if boolMode[k] == n {
-					storedVals = append(storedVals, k)
-				}
-			}
-			// if more nils than the max occurrences of another value, mode is nil
-			if numNil > n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if len(storedVals) == len(boolMode) && (numNil == 0 || numNil == n) { // if no nils and all of them have max num of occurrences, no mode
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if numNil == n { // if max is the same as nil, mode is nil and the other max occurrences
-				if len(storedVals) == 3 {
-					if err := builder.AppendBool(colIdx, true); err != nil {
-						return err
-					}
-					if err := builder.AppendBool(colIdx, false); err != nil {
-						return err
-					}
-				} else {
-					for j := range storedVals {
-						if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
-							return err
-						}
-					}
-				}
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else {
-				if len(storedVals) == 2 {
-					if err := builder.AppendBool(colIdx, true); err != nil {
-						return err
-					}
-					if err := builder.AppendBool(colIdx, false); err != nil {
-						return err
-					}
-				} else {
-					for j := range storedVals {
-						if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
-							return err
-						}
-					}
-				}
-			}
+			err := t.doBool(cr, tbl, boolMode, l, numNil, builder, colIdx)
 
-			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+			if err != nil {
 				return err
 			}
 
 			return nil
 		})
 	case flux.TInt:
-		intMode = make(map[int64]int64)
+		intMode := make(map[int64]int64)
 		return tbl.Do(func(cr flux.ColReader) error {
 			l := cr.Len()
-			for i := 0; i < l; i++ {
-				if cr.Ints(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.Ints(j).Value(i)
-				intMode[v]++
-			}
-			storedVals := []int64{}
-			n := int64(0)
-			for k := range intMode {
-				if intMode[k] > n {
-					storedVals = storedVals[:0]
-					storedVals = append(storedVals, k)
-					n = intMode[k]
-				} else if intMode[k] == n {
-					storedVals = append(storedVals, k)
-				}
-			}
-			if numNil > n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if len(storedVals) == len(intMode) && (numNil == 0 || numNil == n) {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if numNil == n {
-				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
-				for j := range storedVals {
-					if err := builder.AppendInt(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else {
-				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
-				for j := range storedVals {
-					if err := builder.AppendInt(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-			}
-			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+			err := t.doInt(cr, tbl, intMode, l, numNil, builder, colIdx)
+
+			if err != nil {
 				return err
 			}
 
 			return nil
 		})
 	case flux.TUInt:
-		uintMode = make(map[uint64]int64)
+		uintMode := make(map[uint64]int64)
 		return tbl.Do(func(cr flux.ColReader) error {
 			l := cr.Len()
-			for i := 0; i < l; i++ {
-				if cr.UInts(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.UInts(j).Value(i)
-				uintMode[v]++
-			}
-			storedVals := []uint64{}
-			n := int64(0)
-			for k := range uintMode {
-				if uintMode[k] > n {
-					storedVals = storedVals[:0]
-					storedVals = append(storedVals, k)
-					n = uintMode[k]
-				} else if uintMode[k] == n {
-					storedVals = append(storedVals, k)
-				}
-			}
-			if numNil > n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if len(storedVals) == len(uintMode) && (numNil == 0 || numNil == n) {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if numNil == n {
-				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
-				for j := range storedVals {
-					if err := builder.AppendUInt(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else {
-				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
-				for j := range storedVals {
-					if err := builder.AppendUInt(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-			}
-			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+			err := t.doUInt(cr, tbl, uintMode, l, numNil, builder, colIdx)
+
+			if err != nil {
 				return err
 			}
 
 			return nil
 		})
 	case flux.TFloat:
-		floatMode = make(map[float64]int64)
+		floatMode := make(map[float64]int64)
 		return tbl.Do(func(cr flux.ColReader) error {
 			l := cr.Len()
-			for i := 0; i < l; i++ {
-				if cr.Floats(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.Floats(j).Value(i)
-				floatMode[v]++
-			}
-			storedVals := []float64{}
-			n := int64(0)
-			for k := range floatMode {
-				if floatMode[k] > n {
-					storedVals = storedVals[:0]
-					storedVals = append(storedVals, k)
-					n = floatMode[k]
-				} else if floatMode[k] == n {
-					storedVals = append(storedVals, k)
-				}
-			}
-			if numNil > n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if len(storedVals) == len(floatMode) && (numNil == 0 || numNil == n) {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if numNil == n {
-				sort.Float64s(storedVals)
-				for j := range storedVals {
-					if err := builder.AppendFloat(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else {
-				sort.Float64s(storedVals)
-				for j := range storedVals {
-					if err := builder.AppendFloat(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-			}
-			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+			err := t.doFloat(cr, tbl, floatMode, l, numNil, builder, colIdx)
+
+			if err != nil {
 				return err
 			}
 
 			return nil
 		})
 	case flux.TString:
-		stringMode = make(map[string]int64)
+		stringMode := make(map[string]int64)
 		return tbl.Do(func(cr flux.ColReader) error {
 			l := cr.Len()
-			for i := 0; i < l; i++ {
-				if cr.Strings(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := cr.Strings(j).ValueString(i)
-				stringMode[v]++
-			}
-			storedVals := []string{}
-			n := int64(0)
-			for k := range stringMode {
-				if stringMode[k] > n {
-					storedVals = storedVals[:0]
-					storedVals = append(storedVals, k)
-					n = stringMode[k]
-				} else if stringMode[k] == n {
-					storedVals = append(storedVals, k)
-				}
-			}
-			if numNil > n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if len(storedVals) == len(stringMode) && (numNil == 0 || numNil == n) {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if numNil == n {
-				sort.Strings(storedVals)
-				for j := range storedVals {
-					if err := builder.AppendString(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else {
-				sort.Strings(storedVals)
-				for j := range storedVals {
-					if err := builder.AppendString(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-			}
+			err := t.doString(cr, tbl, stringMode, l, numNil, builder, colIdx)
 
-			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+			if err != nil {
 				return err
 			}
 
 			return nil
 		})
 	case flux.TTime:
-		timeMode = make(map[execute.Time]int64)
+		timeMode := make(map[execute.Time]int64)
 		return tbl.Do(func(cr flux.ColReader) error {
 			l := cr.Len()
-			for i := 0; i < l; i++ {
-				if cr.Times(j).IsNull(i) {
-					numNil++
-					continue
-				}
-				v := values.Time(cr.Times(j).Value(i))
-				timeMode[v]++
-			}
-			storedVals := []execute.Time{}
-			n := int64(0)
-			for k := range timeMode {
-				if timeMode[k] > n {
-					storedVals = storedVals[:0]
-					storedVals = append(storedVals, k)
-					n = timeMode[k]
-				} else if timeMode[k] == n {
-					storedVals = append(storedVals, k)
-				}
-			}
-			if numNil > n {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if len(storedVals) == len(timeMode) && (numNil == 0 || numNil == n) {
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else if numNil == n {
-				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
-				for j := range storedVals {
-					if err := builder.AppendTime(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-				if err := builder.AppendNil(colIdx); err != nil {
-					return err
-				}
-			} else {
-				sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
-				for j := range storedVals {
-					if err := builder.AppendTime(colIdx, storedVals[j]); err != nil {
-						return err
-					}
-				}
-			}
-			if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+			err := t.doTime(cr, tbl, timeMode, l, numNil, builder, colIdx)
+
+			if err != nil {
 				return err
 			}
 
@@ -572,6 +264,399 @@ func (t *modeTransformation) Process(id execute.DatasetID, tbl flux.Table) error
 
 	return nil
 }
+
+func (t *modeTransformation) doString(cr flux.ColReader, tbl flux.Table, stringMode map[string]int64, l int, numNil int64, builder execute.TableBuilder, colIdx int) error {
+	j := execute.ColIdx(t.column, tbl.Cols())
+	for i := 0; i < l; i++ {
+		if cr.Strings(j).IsNull(i) {
+			numNil++
+			continue
+		}
+		v := cr.Strings(j).ValueString(i)
+		stringMode[v]++
+	}
+
+	max, total := int64(0), int64(0)
+	for val := range stringMode {
+		if stringMode[val] > max {
+			max, total = stringMode[val], 1
+		} else if stringMode[val] == max {
+			total++
+		}
+	}
+
+	storedVals := make([]string, 0, total)
+	for val := range stringMode {
+		if stringMode[val] == max {
+			storedVals = append(storedVals, val)
+		}
+	}
+
+	/*
+	// byte-slice method: 
+	for k := range stringMode {
+		if stringMode[k] > max {
+			storedVals = storedVals[:0]
+			storedVals = append(storedVals, k)
+			max = stringMode[k]
+		} else if stringMode[k] == max {
+			storedVals = append(storedVals, k)
+		}
+	}
+	*/
+
+	if numNil > max {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if len(storedVals) == len(stringMode) && (numNil == 0 || numNil == max) {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if numNil == max {
+		sort.Strings(storedVals)
+		for j := range storedVals {
+			if err := builder.AppendString(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else {
+		sort.Strings(storedVals)
+		for j := range storedVals {
+			if err := builder.AppendString(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *modeTransformation) doBool(cr flux.ColReader, tbl flux.Table, boolMode map[bool]int64, l int, numNil int64, builder execute.TableBuilder, colIdx int) error {
+	j := execute.ColIdx(t.column, tbl.Cols())
+	for i := 0; i < l; i++ {
+		if cr.Bools(j).IsNull(i) {
+			numNil++
+			continue
+		}
+		v := cr.Bools(j).Value(i)
+		boolMode[v]++
+	}
+
+	max, total := int64(0), int64(0)
+	for val := range boolMode {
+		if boolMode[val] > max {
+			max, total = boolMode[val], 1
+		} else if boolMode[val] == max {
+			total++
+		}
+	}
+
+	storedVals := make([]bool, 0, total)
+	for val := range boolMode {
+		if boolMode[val] == max {
+			storedVals = append(storedVals, val)
+		}
+	}
+
+	// if more nils than the max occurrences of another value, mode is nil
+	if numNil > max {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if len(storedVals) == len(boolMode) && (numNil == 0 || numNil == max) { // if no nils and all of them have max num of occurrences, no mode
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if numNil == max { // if max is the same as nil, mode is nil and the other max occurrences
+		if len(storedVals) == 3 {
+			if err := builder.AppendBool(colIdx, true); err != nil {
+				return err
+			}
+			if err := builder.AppendBool(colIdx, false); err != nil {
+				return err
+			}
+		} else {
+			for j := range storedVals {
+				if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
+					return err
+				}
+			}
+		}
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else {
+		if len(storedVals) == 2 {
+			if err := builder.AppendBool(colIdx, true); err != nil {
+				return err
+			}
+			if err := builder.AppendBool(colIdx, false); err != nil {
+				return err
+			}
+		} else {
+			for j := range storedVals {
+				if err := builder.AppendBool(colIdx, storedVals[j]); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *modeTransformation) doInt(cr flux.ColReader, tbl flux.Table, intMode map[int64]int64, l int, numNil int64, builder execute.TableBuilder, colIdx int) error {
+	j := execute.ColIdx(t.column, tbl.Cols())
+	for i := 0; i < l; i++ {
+		if cr.Ints(j).IsNull(i) {
+			numNil++
+			continue
+		}
+		v := cr.Ints(j).Value(i)
+		intMode[v]++
+	}
+
+	max, total := int64(0), int64(0)
+	for val := range intMode {
+		if intMode[val] > max {
+			max, total = intMode[val], 1
+		} else if intMode[val] == max {
+			total++
+		}
+	}
+
+	storedVals := make([]int64, 0, total)
+	for val := range intMode {
+		if intMode[val] == max {
+			storedVals = append(storedVals, val)
+		}
+	}
+	
+	if numNil > max {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if len(storedVals) == len(intMode) && (numNil == 0 || numNil == max) {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if numNil == max {
+		sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
+		for j := range storedVals {
+			if err := builder.AppendInt(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else {
+		sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
+		for j := range storedVals {
+			if err := builder.AppendInt(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+	}
+	if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *modeTransformation) doUInt(cr flux.ColReader, tbl flux.Table, uintMode map[uint64]int64, l int, numNil int64, builder execute.TableBuilder, colIdx int) error {
+	j := execute.ColIdx(t.column, tbl.Cols())
+	for i := 0; i < l; i++ {
+		if cr.UInts(j).IsNull(i) {
+			numNil++
+			continue
+		}
+		v := cr.UInts(j).Value(i)
+		uintMode[v]++
+	}
+	
+	max, total := int64(0), int64(0)
+	for val := range uintMode {
+		if uintMode[val] > max {
+			max, total = uintMode[val], 1
+		} else if uintMode[val] == max {
+			total++
+		}
+	}
+
+	storedVals := make([]uint64, 0, total)
+	for val := range uintMode {
+		if uintMode[val] == max {
+			storedVals = append(storedVals, val)
+		}
+	}
+
+	if numNil > max {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if len(storedVals) == len(uintMode) && (numNil == 0 || numNil == max) {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if numNil == max {
+		sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
+		for j := range storedVals {
+			if err := builder.AppendUInt(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else {
+		sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
+		for j := range storedVals {
+			if err := builder.AppendUInt(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+	}
+	if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *modeTransformation) doFloat(cr flux.ColReader, tbl flux.Table, floatMode map[float64]int64, l int, numNil int64, builder execute.TableBuilder, colIdx int) error {
+	j := execute.ColIdx(t.column, tbl.Cols())
+	for i := 0; i < l; i++ {
+		if cr.Floats(j).IsNull(i) {
+			numNil++
+			continue
+		}
+		v := cr.Floats(j).Value(i)
+		floatMode[v]++
+	}
+
+	max, total := int64(0), int64(0)
+	for val := range floatMode {
+		if floatMode[val] > max {
+			max, total = floatMode[val], 1
+		} else if floatMode[val] == max {
+			total++
+		}
+	}
+
+	storedVals := make([]float64, 0, total)
+	for val := range floatMode {
+		if floatMode[val] == max {
+			storedVals = append(storedVals, val)
+		}
+	}
+
+	if numNil > max {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if len(storedVals) == len(floatMode) && (numNil == 0 || numNil == max) {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if numNil == max {
+		sort.Float64s(storedVals)
+		for j := range storedVals {
+			if err := builder.AppendFloat(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else {
+		sort.Float64s(storedVals)
+		for j := range storedVals {
+			if err := builder.AppendFloat(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+	}
+	if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *modeTransformation) doTime(cr flux.ColReader, tbl flux.Table, timeMode map[execute.Time]int64, l int, numNil int64, builder execute.TableBuilder, colIdx int) error {
+	j := execute.ColIdx(t.column, tbl.Cols())
+	for i := 0; i < l; i++ {
+		if cr.Times(j).IsNull(i) {
+			numNil++
+			continue
+		}
+		v := values.Time(cr.Times(j).Value(i))
+		timeMode[v]++
+	}
+
+	max, total := int64(0), int64(0)
+	for val := range timeMode {
+		if timeMode[val] > max {
+			max, total = timeMode[val], 1
+		} else if timeMode[val] == max {
+			total++
+		}
+	}
+
+	storedVals := make([]execute.Time, 0, total)
+	for val := range timeMode {
+		if timeMode[val] == max {
+			storedVals = append(storedVals, val)
+		}
+	}
+
+	if numNil > max {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if len(storedVals) == len(timeMode) && (numNil == 0 || numNil == max) {
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else if numNil == max {
+		sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
+		for j := range storedVals {
+			if err := builder.AppendTime(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+		if err := builder.AppendNil(colIdx); err != nil {
+			return err
+		}
+	} else {
+		sort.Slice(storedVals, func(i, j int) bool { return storedVals[i] < storedVals[j] })
+		for j := range storedVals {
+			if err := builder.AppendTime(colIdx, storedVals[j]); err != nil {
+				return err
+			}
+		}
+	}
+	if err := execute.AppendKeyValues(tbl.Key(), builder); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 
 func (t *modeTransformation) UpdateWatermark(id execute.DatasetID, mark execute.Time) error {
 	return t.d.UpdateWatermark(mark)

@@ -8,7 +8,6 @@ import (
 	"github.com/influxdata/flux/execute/executetest"
 	"github.com/influxdata/flux/stdlib/universe"
 )
-
 func TestMode_Process(t *testing.T) {
 	testCases := []struct {
 		name string
