@@ -45,8 +45,8 @@ stateChanges = (fromLevel="any", toLevel, tables=<-) => {
         |> rename(columns: {"l2": "_level"})
         |> drop(columns: ["_start", "_stop"])
 
-     allStatuses = union(tables: [toStatuses, fromStatuses])
-        |> sort(columns: ["_time"])
+    allStatuses = union(tables: [toStatuses, fromStatuses])
+        |> sort(columns: ["_source_timestamp"])
 
     return allStatuses
         |> difference(columns: ["level_value"])
