@@ -4,25 +4,51 @@ The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 
 ## tickscript.alert
 
-_TODO_
+`tickscript.alert()` checks input data and create alerts.
+
+Alerts are records with state value other than OK or if the state just changed to OK status from a non OK state (ie. the alert recovered).
+
+Parameters:
+- `check` - _TODO_
+- `id` - Function that constructs alert ID. Default is _TODO_
+- `message` - Function that constructs alert message. Default is _TODO_
+- `details` - Function that constructs detailed alert message.
+- `crit` - Predicate function that determines `crit` status. Default is `(r) => false`.
+- `warn` - Predicate function that determines `warn` status. Default is `(r) => false`.
+- `info` - Predicate function that determines `info` status. Default is `(r) => false`.
+- `ok` - Predicate function that determines `info` status. Default is `(r) => true`.
+- `stateChangesOnly` - Only send alerts where the state changed. Default value: `false`.
 
 ## tickscript.topic
 
-_TODO_
+`tickscript.topic()` sends alerts to a topic.
+
+Parameters:
+- `name` - Topic name.
 
 ## tickscript.from
 
-_TODO_
+`tickscript.from()` reads alerts from a topic.
+
+Parameters:
+- `name` - Topic name.
+- `start` - Time range start.
+- `stop` - Time range stop. Default value is `now()`.
+- `fn` - Predicate function. Default value is `fn=(r) => true`.
 
 ## tickscript.notify
 
-_TODO_
+`tickscript.notify()` sends alerts to an endpoint.
+
+Parameters:
+- `notification` - _TODO_
+- `endpoint` - Destination endpoint (eg. Slack endpoint).
 
 ## Examples
   
 Alert task:
 
-```javascript
+```js
 import "contrib/bonitoo-io/tickscript"
 
 // required task option
@@ -48,25 +74,26 @@ from(bucket: servicedb)
     |> duplicate(column: "_value", as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
     |> tickscript.alert(
+        check: check,
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${met_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         details: (r) => "https://grafana.nestlabs.com/dashboard/db/noc-jvm-type-realm-stats?&panelId=19&fullscreen&orgId=1&var-myrealm=${r.realm}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
     )
-    |> tickscript.topic(name: pgtest)
+    |> tickscript.topic(name: sltest)
 ```
 
 Topic handler task:
 
-```javascript
+```js
 import "contrib/bonitoo-io/tickscript"
 import "slack"
 
 // required task option
 option task = {
   name: "Noc Testing Topic",
-  topic: "NOC_TESTING",
   every: 1m,
+  topic: "NOC_TESTING",
 }
 
 // Custom notification rule
@@ -82,7 +109,6 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/T49H8ELA1
     text: "Message: ${r._message}\n\nDetail: ${r.details}",
     color: if r._level == "ok" then "good" else "warning"
 }))
-
 
 tickscript.from(start: -task.every, name: task.topic)
     |> tickscript.notify(notification: notification, endpoint: slack_endpoint)
