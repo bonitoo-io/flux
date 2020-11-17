@@ -114,8 +114,7 @@ check = {
 
 from(bucket: servicedb)
     |> range(start: -period)
-    |> filterfn: (r) => ...)
-    |> mean()
+    |> filter(fn: (r) => r._field == met_type and r.realm == tier)
     |> duplicate(column: "_value", as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
     |> tickscript.alert(
@@ -135,9 +134,8 @@ import "slack"
 
 // required task option
 option task = {
-  name: "Testing Topic",
+  name: "Testing Topic Handler",
   every: 1m,
-  topic: "TESTING",
 }
 
 // custom notification rule
@@ -155,7 +153,7 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
     color: if r._level == "ok" then "good" else "warning"
 }))
 
-tickscript.from(start: -task.every, name: task.topic)
+tickscript.from(start: -task.every, name: "TESTING")
     |> tickscript.notify(notification: notification, endpoint: slack_endpoint)
 ```
 
@@ -200,8 +198,7 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 
 from(bucket: servicedb)
     |> range(start: -period)
-    |> filterfn: (r) => ...)
-    |> mean()
+    |> filter(fn: (r) => r._field == met_type and r.realm == tier)
     |> duplicate(column: "_value", as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
     |> tickscript.alert(
