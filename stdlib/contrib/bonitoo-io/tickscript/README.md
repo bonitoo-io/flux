@@ -2,7 +2,7 @@
 
 The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 
-## Functions
+## Available functions
 
 - `alert`
 - `topic`
@@ -13,13 +13,15 @@ Many TICKscript functions has similar counterparts in Flux.
 
 ## Conversion rules
 
+* Both `batch` and `stream` in TICKscript translates to `from(bucket: ...)` in Flux.
+* `every(duration)` property maps to task's option `every` field.
+* `period(duration)` property maps to `range(start: -duration)` in Flux pipeline.
 * `AlertNode` provides set of property methods to send alerts to event handlers or a topic.
   In Flux, use `tickscript.notify()` or `tickscript.topic()` pipeline functions.
-* Both `batch` and `stream` in TICKscript translates to `from(bucket: ...)` in Flux.
 * TICKscript pipeline with multiple alerts translates to multiple Flux pipelines, ie.
 
 ```js
-var data = batch...
+var data = batch ...
 data
     | alert()
         .topic('A')
@@ -107,7 +109,7 @@ check = {
 ...
 
 from(bucket: servicedb)
-    |> range(start: -eval_duration)
+    |> range(start: -period)
     |> filterfn: (r) => ...)
     |> mean()
     |> duplicate(column: "_value", as: "KafkaMsgRate")
@@ -193,7 +195,7 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 }))
 
 from(bucket: servicedb)
-    |> range(start: -eval_duration)
+    |> range(start: -period)
     |> filterfn: (r) => ...)
     |> mean()
     |> duplicate(column: "_value", as: "KafkaMsgRate")
