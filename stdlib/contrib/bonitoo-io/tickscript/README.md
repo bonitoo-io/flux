@@ -14,11 +14,15 @@ Many TICKscript functions has similar counterparts in Flux.
 ## Conversion rules
 
 * Both `batch` and `stream` in TICKscript translates to `from(bucket: ...)` in Flux.
+
 * `every(duration)` property maps to task's option `every` field.
   For better control or aligned scheduling, use `cron` option instead.
+
 * `period(duration)` property maps to `range(start: -duration)` in Flux pipeline.
+
 * `AlertNode` provides set of property methods to send alerts to event handlers or a topic.
   In Flux, use `tickscript.notify()` or `tickscript.topic()` pipeline functions.
+
 * TICKscript pipeline with multiple alerts translates to multiple Flux pipelines, ie.
 
 ```js
