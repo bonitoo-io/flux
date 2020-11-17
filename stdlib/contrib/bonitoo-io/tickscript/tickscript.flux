@@ -3,7 +3,7 @@ package tickscript
 import "experimental"
 import "influxdata/influxdb"
 import "influxdata/influxdb/monitor"
-import "influxdata/influxdb/v1"
+import "influxdata/influxdb/schema"
 
 option bucket = "kapacitor"
 
@@ -38,7 +38,6 @@ alert = (
   statuses = tables
     |> map(fn: (r) => ({ r with id: id(r: r) }))
     |> map(fn: (r) => ({ r with details: details(r: r) }))
-    |> experimental.group(mode: "extend", columns: ["_measurement"]) // wtf - bug in monitor pkg?
     |> monitor.check(
         crit: crit,
         warn: warn,
@@ -78,7 +77,7 @@ from = (name, start, stop=now(), fn=(r) => true) =>
     // |> filter(fn: (r) => r.topic == topic)
     // |> filter(fn: fn)
     // ###
-    |> v1.fieldsAsCols()
+    |> schema.fieldsAsCols()
     // ### use this when topic is not in the group key (see topic function)
     |> filter(fn: (r) => r.topic == name)
     |> filter(fn: fn)
