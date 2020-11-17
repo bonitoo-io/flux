@@ -3,6 +3,7 @@ package monitor
 import "experimental"
 import "influxdata/influxdb/v1"
 import "influxdata/influxdb"
+import "system"
 
 bucket = "_monitoring"
 
@@ -136,7 +137,7 @@ check = (
                 else if ok(r: r) then levelOK
                 else levelUnknown,
             _source_timestamp: int(v:r._time),
-            _time: now(),
+            _time: system.time(),
         }))
         |> map(fn: (r) => ({r with
             _message: messageFn(r: r),
