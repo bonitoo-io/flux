@@ -92,7 +92,25 @@ Parameters:
 
 ### Using topic
 
-Alert task:
+TICKscript:
+```js
+metric_type = 'kafka_message_in_rate'
+...
+
+batch
+    |query('SELECT ' + metric_type + ' AS "KafkaMsgRate" FROM ' +  db  + '  WHERE realm = \'' + tier + '\' AND "host" =~ /^kafka.+.dyn02/')
+    .period(duration)
+    .every(frequency)
+    .groupBy('host','realm')
+   |alert()
+        .id('Realm: {{index .Tags "realm"}} - Hostname: {{index .Tags "host"}} / Metric: ' + metric_type + ' threshold alert' )
+        .message('{{.ID }}: {{ .Level }} - {{ index .Fields "KafkaMsgRate" | printf "%0.2f"}}')
+        .crit(lambda: ("KafkaMsgRate" > h_threshold) OR ("KafkaMsgRate" < l_threshold) )
+        .stateChangesOnly()
+        .topic('TESTING')
+```
+
+InfluxDB alert task:
 
 ```js
 import "contrib/bonitoo-io/tickscript"
@@ -118,7 +136,7 @@ metric_type = 'kafka_message_in_rate'
 
 from(bucket: servicedb)
     |> range(start: -period)
-    |> filter(fn: (r) => r._field == metric_type and r.realm == tier)
+    |> filter(fn: (r) => r._field == metric_type and r.realm == tier and r.host =~ /^kafka.+.dyn02/)
     |> schema.fieldsAsCols()
     |> duplicate(column: metric_type, as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
@@ -127,6 +145,7 @@ from(bucket: servicedb)
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
+        stateChangeOnly: true
     )
     |> tickscript.topic(name: "TESTING")
 ```
@@ -206,7 +225,7 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 
 from(bucket: servicedb)
     |> range(start: -period)
-    |> filter(fn: (r) => r._field == met_type and r.realm == tier)
+    |> filter(fn: (r) => r._field == met_type and r.realm == tier and r.host =~ /^kafka.+.dyn02/)
     |> schema.fieldsAsCols()
     |> duplicate(column: metric_type, as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
@@ -215,6 +234,7 @@ from(bucket: servicedb)
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
+        stateChangeOnly: true
     )
     |> tickscript.notify(notification: notification, endpoint: slack_endpoint)
 ```
