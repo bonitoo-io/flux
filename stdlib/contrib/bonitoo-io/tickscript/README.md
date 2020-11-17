@@ -98,7 +98,7 @@ metric_type = 'kafka_message_in_rate'
 ...
 
 batch
-    |query('SELECT ' + metric_type + ' AS "KafkaMsgRate" FROM ' +  db  + '  WHERE realm = \'' + tier + '\' AND "host" =~ /^kafka.+.dyn02/')
+    |query('SELECT ' + metric_type + ' AS "KafkaMsgRate" FROM ' +  db  + ' WHERE realm = \'' + tier + '\' AND "host" =~ /^kafka.+.m02/')
     .period(duration)
     .every(frequency)
     .groupBy('host','realm')
@@ -136,7 +136,7 @@ metric_type = 'kafka_message_in_rate'
 
 from(bucket: servicedb)
     |> range(start: -period)
-    |> filter(fn: (r) => r._field == metric_type and r.realm == tier and r.host =~ /^kafka.+.dyn02/)
+    |> filter(fn: (r) => r._field == metric_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
     |> schema.fieldsAsCols()
     |> duplicate(column: metric_type, as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
@@ -225,7 +225,7 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 
 from(bucket: servicedb)
     |> range(start: -period)
-    |> filter(fn: (r) => r._field == met_type and r.realm == tier and r.host =~ /^kafka.+.dyn02/)
+    |> filter(fn: (r) => r._field == met_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
     |> schema.fieldsAsCols()
     |> duplicate(column: metric_type, as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
