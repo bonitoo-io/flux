@@ -48,6 +48,7 @@ data
 ## tickscript.alert
 
 `tickscript.alert()` checks input data and create alerts.
+It requires pivoted data (use `schema.fieldsAsCols()`).
 
 Alerts are records with state value other than OK or if the state just changed to OK status from a non OK state (ie. the alert recovered).
 
@@ -95,6 +96,7 @@ Alert task:
 
 ```js
 import "contrib/bonitoo-io/tickscript"
+import "influxdata/influxdb/schema"
 
 // required task option
 option task = {
@@ -110,20 +112,23 @@ check = {
   tags: {},
 } 
 
+// variables
+metric_type = 'kafka_message_in_rate'
 ...
 
 from(bucket: servicedb)
     |> range(start: -period)
-    |> filter(fn: (r) => r._field == met_type and r.realm == tier)
-    |> duplicate(column: "_value", as: "KafkaMsgRate")
+    |> filter(fn: (r) => r._field == metric_type and r.realm == tier)
+    |> schema.fieldsAsCols()
+    |> duplicate(column: metric_type, as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
     |> tickscript.alert(
         check: check,
-        id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${met_type} threshold alert",
+        id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
     )
-    |> tickscript.topic(name: sltest)
+    |> tickscript.topic(name: "TESTING")
 ```
 
 Topic handler task:
@@ -163,6 +168,7 @@ Task:
 
 ```js
 import "contrib/bonitoo-io/tickscript"
+import "influxdata/influxdb/schema"
 import "slack"
 
 // required task option
@@ -187,6 +193,8 @@ notification = {
   _notification_endpoint_name: "${task.name} Endpoint",
 }
 
+// variables
+metric_type = 'kafka_message_in_rate'
 ...
 
 // destination endpoint
@@ -199,11 +207,12 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 from(bucket: servicedb)
     |> range(start: -period)
     |> filter(fn: (r) => r._field == met_type and r.realm == tier)
-    |> duplicate(column: "_value", as: "KafkaMsgRate")
+    |> schema.fieldsAsCols()
+    |> duplicate(column: metric_type, as: "KafkaMsgRate")
     |> group(columns: ["host", "realm"])
     |> tickscript.alert(
         check: check,
-        id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${met_type} threshold alert",
+        id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
     )
