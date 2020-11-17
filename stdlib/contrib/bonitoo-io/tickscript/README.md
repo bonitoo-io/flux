@@ -2,6 +2,43 @@
 
 The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 
+## Functions
+
+- `alert`
+- `topic`
+- `from`
+- `notify`
+
+Many TICKscript functions has similar counterparts in Flux.
+
+## Conversion rules
+
+* `AlertNode` provides set of property methods to send alerts to event handlers or a topic.
+  In Flux, use `tickscript.notify()` or `tickscript.topic()` pipeline functions.
+* Both `batch` and `stream` in TICKscript translates to `from(bucket: ...)` in Flux.
+* TICKscript pipeline with multiple alerts translates to multiple Flux pipelines, ie.
+
+```js
+var data = batch...
+data
+    | alert()
+        .topic('A')
+    | alert()
+        .topic('B')
+```
+
+becomes
+
+```js
+data = from(bucket: ...)
+data
+    |> alert()
+    |> topic('A')
+data
+    |> alert()
+    |> topic('B')
+```
+
 ## tickscript.alert
 
 `tickscript.alert()` checks input data and create alerts.
@@ -9,10 +46,10 @@ The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 Alerts are records with state value other than OK or if the state just changed to OK status from a non OK state (ie. the alert recovered).
 
 Parameters:
-- `check` - _TODO_
+- `check` - Required by underlying `monitor` package _TODO_
 - `id` - Function that constructs alert ID. Default is _TODO_
 - `message` - Function that constructs alert message. Default is _TODO_
-- `details` - Function that constructs detailed alert message.
+- `details` - Function that constructs detailed alert message. Default is _TODO_
 - `crit` - Predicate function that determines `crit` status. Default is `(r) => false`.
 - `warn` - Predicate function that determines `warn` status. Default is `(r) => false`.
 - `info` - Predicate function that determines `info` status. Default is `(r) => false`.
@@ -41,11 +78,13 @@ Parameters:
 `tickscript.notify()` sends alerts to an endpoint.
 
 Parameters:
-- `notification` - _TODO_
+- `notification` - Required by underlying `monitor` package _TODO_
 - `endpoint` - Destination endpoint (eg. Slack endpoint).
 
 ## Examples
-  
+
+### Using topic
+
 Alert task:
 
 ```js
@@ -57,7 +96,7 @@ option task = {
   every: 1m,
 }
 
-// Custom check info
+// custom check info
 check = {
   _check_id: "${task.name}-check",
   _check_name: "${task.name} Check",
@@ -77,7 +116,6 @@ from(bucket: servicedb)
         check: check,
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${met_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
-        details: (r) => "https://grafana.nestlabs.com/dashboard/db/noc-jvm-type-realm-stats?&panelId=19&fullscreen&orgId=1&var-myrealm=${r.realm}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
     )
     |> tickscript.topic(name: sltest)
@@ -91,12 +129,12 @@ import "slack"
 
 // required task option
 option task = {
-  name: "Noc Testing Topic",
+  name: "Testing Topic",
   every: 1m,
-  topic: "NOC_TESTING",
+  topic: "TESTING",
 }
 
-// Custom notification rule
+// custom notification rule
 notification = {
   _notification_rule_id: "${task.topic}-rule",
   _notification_rule_name: "${task.name} Rule",
@@ -104,7 +142,8 @@ notification = {
   _notification_endpoint_name: "${task.name} Endpoint",
 }
 
-slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/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")(mapFn: (r) => ({
+// destination endpoint
+slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(mapFn: (r) => ({
     channel: "",
     text: "Message: ${r._message}\n\nDetail: ${r.details}",
     color: if r._level == "ok" then "good" else "warning"
@@ -113,3 +152,61 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/T49H8ELA1
 tickscript.from(start: -task.every, name: task.topic)
     |> tickscript.notify(notification: notification, endpoint: slack_endpoint)
 ```
+
+### Sending alerts directly to event handler
+
+Task:
+
+```js
+import "contrib/bonitoo-io/tickscript"
+import "slack"
+
+// required task option
+option task = {
+  name: "Kafka Message Rate",
+  every: 1m,
+}
+
+// custom check info
+check = {
+  _check_id: "${task.name}-check",
+  _check_name: "${task.name} Check",
+  _type: "custom",
+  tags: {},
+}
+
+// custom notification rule
+notification = {
+  _notification_rule_id: "${task.topic}-rule",
+  _notification_rule_name: "${task.name} Rule",
+  _notification_endpoint_id: "${task.topic}-endpoint",
+  _notification_endpoint_name: "${task.name} Endpoint",
+}
+
+...
+
+// destination endpoint
+slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(mapFn: (r) => ({
+    channel: "",
+    text: "Message: ${r._message}\n\nDetail: ${r.details}",
+    color: if r._level == "ok" then "good" else "warning"
+}))
+
+from(bucket: servicedb)
+    |> range(start: -eval_duration)
+    |> filterfn: (r) => ...)
+    |> mean()
+    |> duplicate(column: "_value", as: "KafkaMsgRate")
+    |> group(columns: ["host", "realm"])
+    |> tickscript.alert(
+        check: check,
+        id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${met_type} threshold alert",
+        message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
+        crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
+    )
+    |> tickscript.notify(notification: notification, endpoint: slack_endpoint)
+```
+
+## TODO
+
+* provide helper functions for instantiating `check` and `notification` custom records
