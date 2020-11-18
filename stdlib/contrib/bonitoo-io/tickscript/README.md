@@ -141,9 +141,9 @@ metric_type = 'kafka_message_in_rate'
 from(bucket: servicedb)
     |> range(start: -period)
     |> filter(fn: (r) => r._field == metric_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
-    |> duplicate(column: "_value", as: "KafkaMsgRate")
-    |> group(columns: ["host", "realm"])
     |> schema.fieldsAsCols()
+    |> duplicate(column: metric_type, as: "KafkaMsgRate")
+    |> group(columns: ["_measurement", "host", "realm"])
     |> tickscript.alert(
         check: check,
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
@@ -230,9 +230,9 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 from(bucket: servicedb)
     |> range(start: -period)
     |> filter(fn: (r) => r._field == met_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
-    |> duplicate(column: "_value", as: "KafkaMsgRate")
-    |> group(columns: ["host", "realm"])
     |> schema.fieldsAsCols()
+    |> duplicate(column: metric_type, as: "KafkaMsgRate")
+    |> group(columns: ["_measurement", "host", "realm"])
     |> tickscript.alert(
         check: check,
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
