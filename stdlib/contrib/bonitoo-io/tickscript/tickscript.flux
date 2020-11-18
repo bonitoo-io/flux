@@ -23,6 +23,13 @@ as = (column="_value", as, tables=<-) => {
       |> rename(fn: (column) => if column == _column then _as else column)
 }
 
+// groups by specified columns
+// it is meant to be a convenience function, it adds _measurement column which is required by monitor.check()
+groupBy = (columns, tables=<-) =>
+  tables
+    |> group(columns: columns)
+    |> experimental.group(columns: ["_measurement"], mode:"extend") // required by monitor.check
+
 // filters statuses that represent Kapacitor alerts, ie. non-OK statuses and non-OK to OK state changes
 _alertsFromStatuses = (tables=<-) => {
     notOk = tables
@@ -46,7 +53,6 @@ alert = (
     stateChangesOnly=false,
     tables=<-) => {
   statuses = tables
-    |> experimental.group(columns: ["_measurement"], mode:"extend") // required by monitor.check
     |> map(fn: (r) => ({ r with id: id(r: r) }))
     |> map(fn: (r) => ({ r with details: details(r: r) }))
     |> monitor.check(

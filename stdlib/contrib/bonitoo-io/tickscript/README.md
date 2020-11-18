@@ -9,6 +9,7 @@ The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 - `from`
 - `notify`
 - `as`
+- `groupBy`
 
 Many TICKscript functions has similar counterparts in Flux.
 
@@ -97,9 +98,21 @@ Parameters:
 
 `tickscript.as()` is a convenience function for renaming a column.
 
+It is equivalent to using `rename(fn: (column) => ...)`
+
 Parameters:
 - `column` - Existing column. Default value is `_value`.
 - `as` - Desired column name.
+
+## tickscript.groupBy
+
+`tickscript.groupBy()` is a convenience function for groupping by specified set of columns.
+It makes sure that group key includes `_measurement` column which is required by `alert()`.
+
+It is equivalent to using `group(columns: ["_measurement", ...])`.
+
+Parameters:
+- `columns` - Group key columns.
 
 ## Examples
 
@@ -150,7 +163,7 @@ metric_type = 'kafka_message_in_rate'
 from(bucket: servicedb)
     |> range(start: -period)
     |> filter(fn: (r) => r._field == metric_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
-    |> group(columns: ["host", "realm"])
+    |> tickscript.groupBy(columns: ["host", "realm"])
     |> schema.fieldsAsCols()
     |> tickscript.as(column: metric_type, as: "KafkaMsgRate")
     |> tickscript.alert(
@@ -239,7 +252,7 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 from(bucket: servicedb)
     |> range(start: -period)
     |> filter(fn: (r) => r._field == met_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
-    |> group(columns: ["host", "realm"])
+    |> tickscript.groupBy(columns: ["host", "realm"])
     |> schema.fieldsAsCols()
     |> tickscript.as(column: metric_type, as: "KafkaMsgRate")
     |> tickscript.alert(
