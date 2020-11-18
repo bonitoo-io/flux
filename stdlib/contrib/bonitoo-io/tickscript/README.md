@@ -8,6 +8,7 @@ The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 - `topic`
 - `from`
 - `notify`
+- `as`
 
 Many TICKscript functions has similar counterparts in Flux.
 
@@ -97,7 +98,7 @@ Parameters:
 `tickscript.as()` is a convenience function for renaming a column.
 
 Parameters:
-- `column` - Existing column. Default is `_value`.
+- `column` - Existing column. Default value is `_value`.
 - `as` - Desired column name.
 
 ## Examples
