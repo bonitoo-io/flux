@@ -13,6 +13,16 @@ option monitor.write = (tables=<-) =>
 option monitor.log = (tables=<-) =>
   tables |> experimental.to(bucket: bucket)
 
+// renames column
+// it is meant to be a convenience function to rename result column when "SELECT x AS y" is used in TICKscript and x is variable
+as = (column="_value", as, tables=<-) => {
+  _column = column
+  _as = as
+  return
+    tables
+      |> rename(fn: (column) => if column == _column then _as else column)
+}
+
 // filters statuses that represent Kapacitor alerts, ie. non-OK statuses and non-OK to OK state changes
 _alertsFromStatuses = (tables=<-) => {
     notOk = tables
@@ -36,6 +46,7 @@ alert = (
     stateChangesOnly=false,
     tables=<-) => {
   statuses = tables
+    |> experimental.group(columns: ["_measurement"], mode:"extend") // required by monitor.check
     |> map(fn: (r) => ({ r with id: id(r: r) }))
     |> map(fn: (r) => ({ r with details: details(r: r) }))
     |> monitor.check(
@@ -59,7 +70,7 @@ alert = (
 topic = (name, tables=<-) =>
   tables
     |> map(fn: (r) => ({ r with topic: name }))
-    // use this to have extra series, otherwise it overrides existing statuses
+    // use this to have extra series (topic is a tag), otherwise it overrides existing statuses (topic is a field)
     // |> experimental.group(mode: "extend", columns: ["topic"])
     |> experimental.to(bucket: bucket)
 
