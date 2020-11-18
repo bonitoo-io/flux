@@ -92,6 +92,14 @@ Parameters:
 - `notification` - Required by underlying `monitor` package _TODO_
 - `endpoint` - Destination endpoint (eg. Slack endpoint).
 
+## tickscript.as
+
+`tickscript.as()` is a convenience function for renaming a column.
+
+Parameters:
+- `column` - Existing column. Default is `_value`.
+- `as` - Desired column name.
+
 ## Examples
 
 ### Using topic
