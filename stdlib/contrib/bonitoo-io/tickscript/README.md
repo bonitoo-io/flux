@@ -9,7 +9,6 @@ The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 - `from`
 - `notify`
 - `as`
-- `groupBy`
 
 Many TICKscript functions has similar counterparts in Flux.
 
@@ -22,7 +21,10 @@ Many TICKscript functions has similar counterparts in Flux.
 
 * `period(duration)` property maps to `range(start: -duration)` in Flux pipeline.
 
-* `AlertNode` provides set of property methods to send alerts to event handlers or a topic.
+* `groupBy(columns)` maps to `group(columns)`.
+  Columns must include internal `_measurement` column.
+
+* TICKscript `alert` provides property methods to send alerts to event handlers or a topic.
   In Flux, use `tickscript.notify()` or `tickscript.topic()` pipeline functions.
 
 * TICKscript pipeline with multiple alerts translates to multiple Flux pipelines, ie.
@@ -54,7 +56,7 @@ data
 ## tickscript.alert
 
 `tickscript.alert()` checks input data and create alerts.
-It requires pivoted data (use `schema.fieldsAsCols()`).
+It requires pivoted data (call `schema.fieldsAsCols()` before `tickscript.alert()`).
 
 Alerts are records with state value other than OK or if the state just changed to OK status from a non OK state (ie. the alert recovered).
 
@@ -103,16 +105,6 @@ It is equivalent to using `rename(fn: (column) => ...)`
 Parameters:
 - `column` - Existing column. Default value is `_value`.
 - `as` - Desired column name.
-
-## tickscript.groupBy
-
-`tickscript.groupBy()` is a convenience function for groupping by specified set of columns.
-It makes sure that group key includes `_measurement` column which is required by `alert()`.
-
-It is equivalent to using `group(columns: ["_measurement", ...])`.
-
-Parameters:
-- `columns` - Group key columns.
 
 ## Examples
 
@@ -163,7 +155,7 @@ metric_type = 'kafka_message_in_rate'
 from(bucket: servicedb)
     |> range(start: -period)
     |> filter(fn: (r) => r._field == metric_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
-    |> tickscript.groupBy(columns: ["host", "realm"])
+    |> group(columns: ["_measurement", "host", "realm"])
     |> schema.fieldsAsCols()
     |> tickscript.as(column: metric_type, as: "KafkaMsgRate")
     |> tickscript.alert(
@@ -252,7 +244,7 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
 from(bucket: servicedb)
     |> range(start: -period)
     |> filter(fn: (r) => r._field == met_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
-    |> tickscript.groupBy(columns: ["host", "realm"])
+    |> group(columns: ["_measurement", "host", "realm"])
     |> schema.fieldsAsCols()
     |> tickscript.as(column: metric_type, as: "KafkaMsgRate")
     |> tickscript.alert(
