@@ -6,6 +6,7 @@ import "influxdata/influxdb/monitor"
 import "influxdata/influxdb/schema"
 
 option bucket = "kapacitor"
+option rp = 7d
 
 // override monitor persistence functions to use our bucket instead of "_monitoring"
 option monitor.write = (tables=<-) =>
@@ -30,15 +31,18 @@ groupBy = (columns, tables=<-) =>
     |> group(columns: columns)
     |> experimental.group(columns: ["_measurement"], mode:"extend") // required by monitor.check
 
-// filters statuses that represent Kapacitor alerts, ie. non-OK statuses and non-OK to OK state changes
-_alertsFromStatuses = (tables=<-) => {
-    notOk = tables
-        |> filter(fn: (r) => r._level != "ok")
-    againOk = tables
-        |> monitor.stateChanges(toLevel: "ok")
-    return
-        union(tables: [notOk, againOk])
-}
+// last statuses (one per series)
+_last = (start, stop=now()) =>
+  influxdb.from(bucket: bucket)
+    |> range(start: start, stop: stop)
+    |> schema.fieldsAsCols()
+    |> drop(columns: ["_start", "_stop"])
+    |> duplicate(column: "_level", as: "____temp_level____")
+    |> drop(columns: ["_level"])
+    |> rename(columns: {"____temp_level____": "_level"})
+    |> sort(columns: ["_source_timestamp"], desc: false)
+    |> last(column: "_source_timestamp")
+    |> experimental.group(mode: "extend", columns: ["_level"])
 
 // alert
 alert = (
@@ -52,6 +56,7 @@ alert = (
     ok=(r) => true,
     stateChangesOnly=false,
     tables=<-) => {
+  lastStatuses = _last(start: -rp)
   statuses = tables
     |> map(fn: (r) => ({ r with id: id(r: r) }))
     |> map(fn: (r) => ({ r with details: details(r: r) }))
@@ -63,13 +68,19 @@ alert = (
         messageFn: message,
         data: check
     )
-  return
+  sequence = union(tables: [lastStatuses, statuses])
+  notOk = statuses
+    |> filter(fn: (r) => r._level != "ok")
+  againOk = sequence
+    |> monitor.stateChanges(toLevel: "ok")
+  anyChange = sequence
+    |> monitor.stateChangesOnly()
+  alerts =
     if stateChangesOnly then
-      statuses
-        |> monitor.stateChangesOnly()
+      anyChange
     else
-      statuses
-        |> _alertsFromStatuses()
+      union(tables: [notOk, againOk])
+  return alerts
 }
 
 // routes alerts to topic
