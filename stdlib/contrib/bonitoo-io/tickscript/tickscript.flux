@@ -14,23 +14,6 @@ option monitor.write = (tables=<-) =>
 option monitor.log = (tables=<-) =>
   tables |> experimental.to(bucket: bucket)
 
-// renames column
-// it is meant to be a convenience function to rename result column when "SELECT x AS y" is used in TICKscript and x is variable
-as = (column="_value", as, tables=<-) => {
-  _column = column
-  _as = as
-  return
-    tables
-      |> rename(fn: (column) => if column == _column then _as else column)
-}
-
-// groups by specified columns
-// it is meant to be a convenience function, it adds _measurement column which is required by monitor.check()
-groupBy = (columns, tables=<-) =>
-  tables
-    |> group(columns: columns)
-    |> experimental.group(columns: ["_measurement"], mode:"extend") // required by monitor.check
-
 // removes column from group key
 _ungroup = (column, tables=<-) =>
   tables
@@ -122,3 +105,20 @@ from = (name, start, stop=now(), fn=(r) => true) =>
     // ###
     |> _ungroup(column: "_level")
     |> _sort()
+
+// renames column
+// it is meant to be a convenience function to rename result column when "SELECT x AS y" is used in TICKscript and x is variable
+as = (column="_value", as, tables=<-) => {
+  _column = column
+  _as = as
+  return
+    tables
+      |> rename(fn: (column) => if column == _column then _as else column)
+}
+
+// groups by specified columns
+// it is meant to be a convenience function, it adds _measurement column which is required by monitor.check()
+groupBy = (columns, tables=<-) =>
+  tables
+    |> group(columns: columns)
+    |> experimental.group(columns: ["_measurement"], mode:"extend") // required by monitor.check
