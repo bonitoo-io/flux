@@ -1,4 +1,4 @@
-# Tickscript package 
+# Tickscript package
 
 The `tickscript` package can be used to convert TICKscripts to InfluxDB tasks.
 
