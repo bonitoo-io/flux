@@ -31,16 +31,26 @@ groupBy = (columns, tables=<-) =>
     |> group(columns: columns)
     |> experimental.group(columns: ["_measurement"], mode:"extend") // required by monitor.check
 
+// removes column from group key
+_ungroup = (column, tables=<-) =>
+  tables
+    |> duplicate(column: column, as: "____temp_column____")
+    |> drop(columns: [column])
+    |> rename(columns: {____temp_column____: "_level"})
+
+// sorts by columns with handy defaults
+_sort = (columns=["_source_timestamp"], desc=false, tables=<-) =>
+  tables
+    |> sort(columns: columns, desc: desc)
+
 // last statuses (one per series)
 _last = (start, stop=now()) =>
   influxdb.from(bucket: bucket)
     |> range(start: start, stop: stop)
     |> schema.fieldsAsCols()
     |> drop(columns: ["_start", "_stop"])
-    |> duplicate(column: "_level", as: "____temp_level____")
-    |> drop(columns: ["_level"])
-    |> rename(columns: {"____temp_level____": "_level"})
-    |> sort(columns: ["_source_timestamp"], desc: false)
+    |> _ungroup(column: "_level")
+    |> _sort()
     |> last(column: "_source_timestamp")
     |> experimental.group(mode: "extend", columns: ["_level"])
 
@@ -99,7 +109,7 @@ notify = (notification, endpoint, tables=<-) =>
 // reads topic
 from = (name, start, stop=now(), fn=(r) => true) =>
   influxdb.from(bucket: bucket)
-    |> range(start: start)
+    |> range(start: start, stop: stop)
     |> filter(fn: (r) => r._measurement == "statuses")
     // ### use this when topic is in the group key (see topic function)
     // |> filter(fn: (r) => r.topic == topic)
@@ -110,3 +120,5 @@ from = (name, start, stop=now(), fn=(r) => true) =>
     |> filter(fn: (r) => r.topic == name)
     |> filter(fn: fn)
     // ###
+    |> _ungroup(column: "_level")
+    |> _sort()
