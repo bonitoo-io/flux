@@ -131,7 +131,7 @@ batch
 InfluxDB alert task:
 
 ```js
-import "contrib/bonitoo-io/tickscript"
+import ts "contrib/bonitoo-io/tickscript"
 import "influxdata/influxdb/schema"
 
 // required task option
@@ -158,21 +158,21 @@ from(bucket: servicedb)
     |> group(columns: ["_measurement", "host", "realm"])
     |> schema.fieldsAsCols()
     |> drop(columns: ["_start", "_stop"])
-    |> tickscript.as(column: metric_type, as: "KafkaMsgRate")
-    |> tickscript.alert(
+    |> ts.as(column: metric_type, as: "KafkaMsgRate")
+    |> ts.alert(
         check: check,
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
         stateChangeOnly: true
     )
-    |> tickscript.topic(name: "TESTING")
+    |> ts.topic(name: "TESTING")
 ```
 
 Topic handler task:
 
 ```js
-import "contrib/bonitoo-io/tickscript"
+import ts "contrib/bonitoo-io/tickscript"
 import "slack"
 
 // required task option
@@ -196,8 +196,8 @@ slack_endpoint = slack.endpoint(url: "https://hooks.slack.com/services/...")(map
     color: if r._level == "ok" then "good" else "warning"
 }))
 
-tickscript.from(start: -task.every, name: "TESTING")
-    |> tickscript.notify(notification: notification, endpoint: slack_endpoint)
+ts.from(start: -task.every, name: "TESTING")
+    |> ts.notify(notification: notification, endpoint: slack_endpoint)
 ```
 
 ### Sending alerts directly to event handler
@@ -205,7 +205,7 @@ tickscript.from(start: -task.every, name: "TESTING")
 Task:
 
 ```js
-import "contrib/bonitoo-io/tickscript"
+import ts "contrib/bonitoo-io/tickscript"
 import "influxdata/influxdb/schema"
 import "slack"
 
@@ -248,15 +248,15 @@ from(bucket: servicedb)
     |> group(columns: ["_measurement", "host", "realm"])
     |> schema.fieldsAsCols()
     |> drop(columns: ["_start", "_stop"])
-    |> tickscript.as(column: metric_type, as: "KafkaMsgRate")
-    |> tickscript.alert(
+    |> ts.as(column: metric_type, as: "KafkaMsgRate")
+    |> ts.alert(
         check: check,
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
         stateChangeOnly: true
     )
-    |> tickscript.notify(notification: notification, endpoint: slack_endpoint)
+    |> ts.notify(notification: notification, endpoint: slack_endpoint)
 ```
 
 ## TODO
