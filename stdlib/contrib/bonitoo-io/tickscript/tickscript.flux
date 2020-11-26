@@ -99,9 +99,11 @@ topic = (name, tables=<-) =>
     |> experimental.group(mode: "extend", columns: ["topic"])
     |> _tstarget()
 
-// sends alerts to event handler
+// sends alerts to event handler (events are ordered by source timestamp)
 notify = (notification, endpoint, tables=<-) =>
   tables
+    |> _ungroup(column: "_level")
+    |> _sort()
     |> monitor.notify(data: notification, endpoint: endpoint)
 
 // reads topic
