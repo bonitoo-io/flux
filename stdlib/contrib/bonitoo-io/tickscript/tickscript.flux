@@ -95,7 +95,6 @@ alert = (
 // routes alerts to topic
 topic = (name, tables=<-) =>
   tables
-    //|> map(fn: (r) => ({ r with topic: name }))
     |> experimental.set(o: { topic: name })
     |> experimental.group(mode: "extend", columns: ["topic"])
     |> _tstarget()
