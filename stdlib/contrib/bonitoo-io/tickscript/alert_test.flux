@@ -6,7 +6,7 @@ import "contrib/bonitoo-io/tickscript"
 import "influxdata/influxdb/monitor"
 import "influxdata/influxdb/schema"
 
-option now = () => (2020-11-25T14:05:15Z)
+option now = () => (2020-11-25T14:05:30Z)
 
 option monitor.write = (tables=<-) => tables
 option monitor.log = (tables=<-) => tables
