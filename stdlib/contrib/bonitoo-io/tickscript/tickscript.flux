@@ -5,14 +5,21 @@ import "influxdata/influxdb"
 import "influxdata/influxdb/monitor"
 import "influxdata/influxdb/schema"
 
-option bucket = "kapacitor"
-option rp = 7d
+// bucket
+bucket = "kapacitor"
+
+// retention policy
+rp = 7d
 
 // override monitor persistence functions to use our bucket instead of "_monitoring"
 option monitor.write = (tables=<-) =>
   tables |> experimental.to(bucket: bucket)
 option monitor.log = (tables=<-) =>
   tables |> experimental.to(bucket: bucket)
+
+// statuses backend (default is bucket but can be overriden eg. for testing without actual db engine)
+option _sssource = () =>
+  influxdb.from(bucket: bucket)
 
 // removes column from group key
 _ungroup = (column, tables=<-) =>
@@ -28,8 +35,9 @@ _sort = (columns=["_source_timestamp"], desc=false, tables=<-) =>
 
 // last statuses (one per series)
 _last = (start, stop=now()) =>
-  influxdb.from(bucket: bucket)
+  _sssource()
     |> range(start: start, stop: stop)
+    |> filter(fn: (r) => r._measurement == "statuses")
     |> schema.fieldsAsCols()
     |> drop(columns: ["_start", "_stop"])
     |> _ungroup(column: "_level")
