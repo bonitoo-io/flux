@@ -21,6 +21,14 @@ option monitor.log = (tables=<-) =>
 option _sssource = () =>
   influxdb.from(bucket: bucket)
 
+// topic source (default is bucket but can be overriden eg. for testing without actual db engine)
+option _tssource = () =>
+  influxdb.from(bucket: bucket)
+
+// topic target (default is bucket but can be overriden eg. for testing without actual db engine)
+option _tstarget = (tables=<-) =>
+  tables |> experimental.to(bucket: bucket)
+
 // removes column from group key
 _ungroup = (column, tables=<-) =>
   tables
@@ -87,10 +95,10 @@ alert = (
 // routes alerts to topic
 topic = (name, tables=<-) =>
   tables
-    |> map(fn: (r) => ({ r with topic: name }))
-    // use this to have extra series (topic is a tag), otherwise it overrides existing statuses (topic is a field)
-    // |> experimental.group(mode: "extend", columns: ["topic"])
-    |> experimental.to(bucket: bucket)
+    //|> map(fn: (r) => ({ r with topic: name }))
+    |> experimental.set(o: { topic: name })
+    |> experimental.group(mode: "extend", columns: ["topic"])
+    |> _tstarget()
 
 // sends alerts to event handler
 notify = (notification, endpoint, tables=<-) =>
@@ -99,20 +107,12 @@ notify = (notification, endpoint, tables=<-) =>
 
 // reads topic
 from = (name, start, stop=now(), fn=(r) => true) =>
-  influxdb.from(bucket: bucket)
+  _tssource()
     |> range(start: start, stop: stop)
     |> filter(fn: (r) => r._measurement == "statuses")
-    // ### use this when topic is in the group key (see topic function)
-    // |> filter(fn: (r) => r.topic == topic)
-    // |> filter(fn: fn)
-    // ###
-    |> schema.fieldsAsCols()
-    // ### use this when topic is not in the group key (see topic function)
     |> filter(fn: (r) => r.topic == name)
     |> filter(fn: fn)
-    // ###
-    |> _ungroup(column: "_level")
-    |> _sort()
+    |> schema.fieldsAsCols()
 
 // renames column
 // it is meant to be a convenience function to rename result column when "SELECT x AS y" is used in TICKscript and x is variable
