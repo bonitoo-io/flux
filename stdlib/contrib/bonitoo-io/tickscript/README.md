@@ -164,7 +164,7 @@ from(bucket: servicedb)
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
-        stateChangeOnly: true
+        stateChangesOnly: true
     )
     |> ts.topic(name: "TESTING")
 ```
@@ -254,7 +254,7 @@ from(bucket: servicedb)
         id: (r) => "Realm: ${r.realm} - Hostname: ${r.host} / Metric: ${metric_type} threshold alert",
         message: (r) => "${r.id}: ${r._level} - ${string(v:r.KafkaMsgRate)}",
         crit: (r) => r.KafkaMsgRate > h_threshold or r.KafkaMsgRate < l_threshold,
-        stateChangeOnly: true
+        stateChangesOnly: true
     )
     |> ts.notify(notification: notification, endpoint: slack_endpoint)
 ```
