@@ -16,26 +16,31 @@ statusesData = "
 #datatype,string,long,dateTime:RFC3339,double,string,string,string,string,string,string,string,string,string
 #default,_result,,,,,,,,,,,,
 ,result,table,_time,_value,_check_id,_check_name,_field,_level,_measurement,_source_measurement,_type,host,realm
-,,0,2020-11-25T14:04:25.856624989Z,8.33716449678206,rate-check,Rate Check,KafkaMsgRate,warn,statuses,testm,custom,kafka07,ft
+,,0,2020-11-25T14:04:25.756624987Z,1.53716449678207,rate-check,Rate Check,KafkaMsgRate,ok,statuses,testm,custom,kafka01,ft
+,,1,2020-11-25T14:04:25.856624989Z,8.33716449678206,rate-check,Rate Check,KafkaMsgRate,warn,statuses,testm,custom,kafka07,ft
 
 #group,false,false,false,false,true,true,true,true,true,true,true,true,true
 #datatype,string,long,dateTime:RFC3339,string,string,string,string,string,string,string,string,string,string
 #default,_result,,,,,,,,,,,,
 ,result,table,_time,_value,_check_id,_check_name,_field,_level,_measurement,_source_measurement,_type,host,realm
-,,1,2020-11-25T14:04:25.856624989Z,Realm: ft - Hostname: kafka07 / Metric: kafka_message_in_rate threshold alert: warn - 8.33716449678206,rate-check,Rate Check,_message,warn,statuses,testm,custom,kafka07,ft
+,,2,2020-11-25T14:04:25.756624987Z,Realm: ft - Hostname: kafka01 / Metric: kafka_message_in_rate threshold alert: ok - 1.53716449678207,rate-check,Rate Check,_message,ok,statuses,testm,custom,kafka01,ft
+,,3,2020-11-25T14:04:25.856624989Z,Realm: ft - Hostname: kafka07 / Metric: kafka_message_in_rate threshold alert: warn - 8.33716449678206,rate-check,Rate Check,_message,warn,statuses,testm,custom,kafka07,ft
 
 #group,false,false,false,false,true,true,true,true,true,true,true,true,true
 #datatype,string,long,dateTime:RFC3339,long,string,string,string,string,string,string,string,string,string
 #default,_result,,,,,,,,,,,,
 ,result,table,_time,_value,_check_id,_check_name,_field,_level,_measurement,_source_measurement,_type,host,realm
-,,2,2020-11-25T14:04:25.856624989Z,1606313047768317097,rate-check,Rate Check,_source_timestamp,warn,statuses,testm,custom,kafka07,ft
+,,4,2020-11-25T14:04:25.756624987Z,1606313047768317098,rate-check,Rate Check,_source_timestamp,ok,statuses,testm,custom,kafka01,ft
+,,5,2020-11-25T14:04:25.856624989Z,1606313047768317097,rate-check,Rate Check,_source_timestamp,warn,statuses,testm,custom,kafka07,ft
 
 #group,false,false,false,false,true,true,true,true,true,true,true,true,true
 #datatype,string,long,dateTime:RFC3339,string,string,string,string,string,string,string,string,string,string
 #default,_result,,,,,,,,,,,,
 ,result,table,_time,_value,_check_id,_check_name,_field,_level,_measurement,_source_measurement,_type,host,realm
-,,3,2020-11-25T14:04:25.856624989Z,some detail: myrealm=ft,rate-check,Rate Check,details,warn,statuses,testm,custom,kafka07,ft
-,,4,2020-11-25T14:04:25.856624989Z,Realm: ft - Hostname: kafka07 / Metric: kafka_message_in_rate threshold alert,rate-check,Rate Check,id,warn,statuses,testm,custom,kafka07,ft
+,,6,2020-11-25T14:04:25.756624987Z,some detail: myrealm=ft,rate-check,Rate Check,details,ok,statuses,testm,custom,kafka01,ft
+,,7,2020-11-25T14:04:25.856624989Z,some detail: myrealm=ft,rate-check,Rate Check,details,warn,statuses,testm,custom,kafka07,ft
+,,8,2020-11-25T14:04:25.756624987Z,Realm: ft - Hostname: kafka01 / Metric: kafka_message_in_rate threshold alert,rate-check,Rate Check,id,ok,statuses,testm,custom,kafka01,ft
+,,9,2020-11-25T14:04:25.856624989Z,Realm: ft - Hostname: kafka07 / Metric: kafka_message_in_rate threshold alert,rate-check,Rate Check,id,warn,statuses,testm,custom,kafka07,ft
 "
 
 // override source for existing statuses

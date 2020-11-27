@@ -75,7 +75,7 @@ var sourceHashes = map[string]string{
 	"stdlib/contrib/anaisdg/statsmodels/linearreg.flux":                             "d0b71e0a13566f6916586ca49a16ebd96f940b35bf48af4c5c6444653cfd565d",
 	"stdlib/contrib/anaisdg/statsmodels/linearreg_test.flux":                        "21a1bed6c35e9dec388d3bb8e8d4dd6e4e647a612ff6c1af434dcdbd01c9d26a",
 	"stdlib/contrib/bonitoo-io/tickscript/alert_state_changes_only_test.flux":       "a34fcc3a5450acf4638a7f56e5eca2bd94b5022c14a9ce7a57994f522a1977b1",
-	"stdlib/contrib/bonitoo-io/tickscript/alert_test.flux":                          "4230ae8731a81cd5dc0407f97281912b7f87f9ab445617b98391d551ed03c0c0",
+	"stdlib/contrib/bonitoo-io/tickscript/alert_test.flux":                          "1fe7b3b12a88d6bff3ba11b9d12d91621f2b9fff98fa0b799e8062c38c012375",
 	"stdlib/contrib/bonitoo-io/tickscript/from_test.flux":                           "07509e8511e2369d42ed6d97e03e73b7e500cde3dd1f00e56837cab565cf9de1",
 	"stdlib/contrib/bonitoo-io/tickscript/handler_example_test.flux":                "3a49f3e0933d7f43f49dc1ee92de44235d2aeb3e373412afd50ffd3fc029fd3f",
 	"stdlib/contrib/bonitoo-io/tickscript/tickscript.flux":                          "41cebe896a1b564ec5292b05c47410cde6897f6390c8fa308a8fb6bc10557588",
