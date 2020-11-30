@@ -128,7 +128,7 @@ check = (
             _measurement: "statuses",
             _source_measurement: r._measurement,
             _type: data._type,
-            _check_id:  data._check_id,
+            _check_id: data._check_id,
             _check_name: data._check_name,
             _level:
                 if crit(r: r) then levelCrit

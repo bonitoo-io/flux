@@ -42,10 +42,11 @@ _sort = (columns=["_source_timestamp"], desc=false, tables=<-) =>
     |> sort(columns: columns, desc: desc)
 
 // last statuses (one per series)
-_last = (start, stop=now()) =>
+_last = (data, start, stop=now()) =>
   _sssource()
     |> range(start: start, stop: stop)
     |> filter(fn: (r) => r._measurement == "statuses")
+    |> filter(fn: (r) => r._type == data._type and r._check_id == data._check_id)
     |> schema.fieldsAsCols()
     |> drop(columns: ["_start", "_stop"])
     |> _ungroup(column: "_level")
@@ -65,7 +66,7 @@ alert = (
     ok=(r) => true,
     stateChangesOnly=false,
     tables=<-) => {
-  lastStatuses = _last(start: -rp)
+  lastStatuses = _last(data: check, start: -rp)
   statuses = tables
     |> map(fn: (r) => ({ r with id: id(r: r) }))
     |> map(fn: (r) => ({ r with details: details(r: r) }))
