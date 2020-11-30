@@ -78,7 +78,7 @@ var sourceHashes = map[string]string{
 	"stdlib/contrib/bonitoo-io/tickscript/alert_test.flux":                          "1fe7b3b12a88d6bff3ba11b9d12d91621f2b9fff98fa0b799e8062c38c012375",
 	"stdlib/contrib/bonitoo-io/tickscript/from_test.flux":                           "07509e8511e2369d42ed6d97e03e73b7e500cde3dd1f00e56837cab565cf9de1",
 	"stdlib/contrib/bonitoo-io/tickscript/handler_example_test.flux":                "3a49f3e0933d7f43f49dc1ee92de44235d2aeb3e373412afd50ffd3fc029fd3f",
-	"stdlib/contrib/bonitoo-io/tickscript/tickscript.flux":                          "416ec9c1ba38ca3e0d94e4a99a08a9479198c4e8a9462ba94a03f7b399c78207",
+	"stdlib/contrib/bonitoo-io/tickscript/tickscript.flux":                          "c4fe17f53725eb8b8f307ad4026626927e6b37b6afe668ae4258adcf2c5c8fe5",
 	"stdlib/contrib/bonitoo-io/tickscript/topic_test.flux":                          "f93922498a160a1b598afa32fe2e814a1d52bb435d4bd4089e0f2f4d6f459a73",
 	"stdlib/contrib/chobbs/discord/discord.flux":                                    "b9f9b1a60fc92f47930fa4252a77bfc1def5ba98084880eddb4ebbab4078a697",
 	"stdlib/contrib/jsternberg/aggregate/aggregate.flux":                            "fffde07d389b43cd8e2a0f7109f0afa4157174f28d71afac7d484b3423985e93",

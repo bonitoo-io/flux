@@ -68,6 +68,7 @@ alert = (
     tables=<-) => {
   lastStatuses = _last(data: check, start: -rp)
   statuses = tables
+    |> drop(columns: ["_start", "_stop"])
     |> map(fn: (r) => ({ r with id: id(r: r) }))
     |> map(fn: (r) => ({ r with details: details(r: r) }))
     |> monitor.check(

@@ -157,7 +157,6 @@ from(bucket: servicedb)
     |> filter(fn: (r) => r._field == metric_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
     |> group(columns: ["_measurement", "host", "realm"])
     |> schema.fieldsAsCols()
-    |> drop(columns: ["_start", "_stop"])
     |> ts.as(column: metric_type, as: "KafkaMsgRate")
     |> ts.alert(
         check: check,
@@ -247,7 +246,6 @@ from(bucket: servicedb)
     |> filter(fn: (r) => r._field == met_type and r.realm == tier and r.host =~ /^kafka.+.m02/)
     |> group(columns: ["_measurement", "host", "realm"])
     |> schema.fieldsAsCols()
-    |> drop(columns: ["_start", "_stop"])
     |> ts.as(column: metric_type, as: "KafkaMsgRate")
     |> ts.alert(
         check: check,
